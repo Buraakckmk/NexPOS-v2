@@ -141,32 +141,46 @@ class _AdminExpensesScreenState extends State<AdminExpensesScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => AlertDialog(
-          title: const Text("Gider Düzenle"),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          title: const Text("Gider Düzenle", style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameController,
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                   decoration: const InputDecoration(
                     labelText: "Ürün/Hizmet Adı",
+                    labelStyle: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.w700),
                   ),
                 ),
                 TextField(
                   controller: quantityController,
-                  decoration: const InputDecoration(labelText: "Miktar"),
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
+                  decoration: const InputDecoration(
+                    labelText: "Miktar",
+                    labelStyle: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.w700),
+                  ),
                   keyboardType: TextInputType.number,
                 ),
                 TextField(
                   controller: priceController,
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                   decoration: const InputDecoration(
                     labelText: "Birim Fiyat (TL)",
+                    labelStyle: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700),
                   ),
                   keyboardType: TextInputType.number,
                 ),
                 TextField(
                   controller: noteController,
-                  decoration: const InputDecoration(labelText: "Not"),
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
+                  decoration: const InputDecoration(
+                    labelText: "Not",
+                    labelStyle: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700),
+                  ),
                 ),
                 ListTile(
                   title: const Text("Tarih"),
