@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 60
+    },
+    "auditLog": "C:\\Projects\\okeyra\\logs\\.6006ec15271c7aaa42ab1c5fb0c0635c46771112-audit.json",
+    "files": [
+        {
+            "date": 1789831381899,
+            "name": "C:\\Projects\\okeyra\\logs\\error-2026-09-19.log",
+            "hash": "db3aae67e27aa31ddaf6bcb6c3c60fa21aa05465a553924a5e545190fb00928b"
+        }
+    ],
+    "hashType": "sha256"
+}

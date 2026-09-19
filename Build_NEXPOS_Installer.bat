@@ -39,6 +39,7 @@ if not defined ISCC_PATH (
 
 echo [1/3] Flutter Windows release derleniyor...
 pushd "frontend"
+"%FLUTTER_PATH%" clean
 "%FLUTTER_PATH%" pub get
 if errorlevel 1 (
   popd

@@ -1,4 +1,38 @@
-require("dotenv").config({ override: true });
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env"), override: true });
+const { Client } = require("pg");
+
+async function ensureDatabaseExists() {
+  const dbName = process.env.DB_NAME || "adisyon_db";
+  const client = new Client({
+    host: process.env.DB_HOST || "127.0.0.1",
+    port: Number(process.env.DB_PORT || 5432),
+    user: process.env.DB_USER || "postgres",
+    password: process.env.DB_PASSWORD || "postgres",
+    database: "postgres",
+  });
+
+  try {
+    await client.connect();
+    const res = await client.query(
+      `SELECT 1 FROM pg_database WHERE datname = $1`,
+      [dbName]
+    );
+    if (res.rowCount === 0) {
+      console.log(`Database '${dbName}' does not exist. Creating database...`);
+      await client.query(`CREATE DATABASE "${dbName}";`);
+      console.log(`Database '${dbName}' created successfully.`);
+    } else {
+      console.log(`Database '${dbName}' already exists.`);
+    }
+  } catch (err) {
+    console.error("Database existence check warning:", err.message);
+  } finally {
+    try {
+      await client.end();
+    } catch (_) {}
+  }
+}
 
 const db = require("../config/db");
 
@@ -461,6 +495,7 @@ async function seedUsers(client) {
 }
 
 async function run() {
+  await ensureDatabaseExists();
   const client = await db.pool.connect();
 
   try {
