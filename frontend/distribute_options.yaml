@@ -1,0 +1,17 @@
+output: dist/
+publish:
+  # (Opsiyonel) Yayınlama ayarları buraya gelebilir
+releases:
+  - name: production
+    setup_configs:
+      windows:
+        display_name: NEXPOS
+        executable_path: build\windows\x64\runner\Release\NEXPOS.exe
+        install_path: NEXPOS
+        # NSIS ayarları
+        nsis:
+          artifact_name: NEXPOS-Setup.exe
+          one_click: false
+          allow_to_change_installation_directory: true
+          create_desktop_shortcut: true
+          create_start_menu_shortcut: true

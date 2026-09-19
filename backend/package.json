@@ -1,0 +1,46 @@
+{
+  "name": "adisyon-backend",
+  "version": "1.0.0",
+  "description": "Modern restoran adisyon ve POS otomasyon backend",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "init-db": "node src/scripts/init-db.js",
+    "migrate:printer-routes": "node src/scripts/add_printer_routes.js",
+    "seed-demo": "node src/scripts/seed-demo.js",
+    "seed:kahvalti": "node src/scripts/seed-kahvalti-ve-baslangiclar.js",
+    "seed:aperatifler": "node src/scripts/seed-aperatifler.js",
+    "seed:sandvicler": "node src/scripts/seed-sandvicler-ve-tostlar.js",
+    "seed:burgerler": "node src/scripts/seed-burgerler.js",
+    "seed:pizzalar": "node src/scripts/seed-pizzalar.js",
+    "seed:wrapler": "node src/scripts/seed-wrapler.js",
+    "seed:krepler-salatalar": "node src/scripts/seed-krepler-salatalar.js",
+    "seed:makarnalar": "node src/scripts/seed-makarnalar.js",
+    "seed:anayemekler": "node src/scripts/seed-ana-yemekler.js",
+    "reset-sales-data": "node src/scripts/reset-sales-data.js",
+    "install-service": "node install_service.js",
+    "backup-now": "node -e \"require('./src/services/backup.service').runBackupNow().then((file) => { console.log(file); process.exit(0); }).catch((error) => { console.error(error); process.exit(1); })\""
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "node-cron": "^4.2.1",
+    "node-thermal-printer": "^4.6.0",
+    "node-windows": "^1.0.0-beta.8",
+    "pg": "^8.13.1",
+    "socket.io": "^4.8.1",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}

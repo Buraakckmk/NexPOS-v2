@@ -1,0 +1,35 @@
+# Node.js / Backend
+node_modules/
+**/node_modules/
+backend/logs/
+*.log
+.env
+.env.*
+
+# Executables & Installer output
+*.exe
+installer_output/
+
+# IDE / Editor
+.vscode/
+.idea/
+.qoder/
+.history/
+*.swp
+*.DS_Store
+
+# Flutter / Frontend
+.dart_tool/
+.pub/
+.pub-cache/
+/frontend/build/
+/frontend/coverage/
+/frontend/.flutter-plugins-dependencies
+/frontend/ios/Flutter/.last_build_id
+/frontend/android/app/debug
+/frontend/android/app/profile
+/frontend/android/app/release
+
+# Miscellaneous
+*.tmp
+*.bak
