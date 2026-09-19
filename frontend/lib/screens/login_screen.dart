@@ -467,7 +467,7 @@ class _LoginScreenState extends State<LoginScreen>
 
 // ── _HeroPanel ───────────────────────────────────────────────────────────────
 
-class _HeroPanel extends StatelessWidget {
+class _HeroPanel extends StatefulWidget {
   final AnimationController orbController;
   final AnimationController floatController;
   final AnimationController rotateController;
@@ -479,50 +479,110 @@ class _HeroPanel extends StatelessWidget {
   });
 
   @override
+  State<_HeroPanel> createState() => _HeroPanelState();
+}
+
+class _HeroPanelState extends State<_HeroPanel>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _featureController;
+  int _activeFeatureIndex = 0;
+
+  final List<Map<String, dynamic>> _features = const [
+    {
+      "icon": Icons.table_restaurant_rounded,
+      "title": "Akıllı Masa & Sipariş",
+      "desc": "Masa durumları, hızlı adisyon alma, masa bölme & taşıma.",
+      "color": Color(0xFF10B981),
+      "badge": "Hızlı POS",
+    },
+    {
+      "icon": Icons.print_rounded,
+      "title": "Mutfak & Bar Yönlendirme",
+      "desc": "Mutfak, Bar ve Kasa yazıcılarına siparişlerin eşzamanlı aktarımı.",
+      "color": Color(0xFF06B6D4),
+      "badge": "Otomatik Print",
+    },
+    {
+      "icon": Icons.analytics_rounded,
+      "title": "Canlı Ciro & Z-Raporu",
+      "desc": "Anlık günlük ciro, detaylı gider takibi ve müşteri bakiyeleri.",
+      "color": Color(0xFF6366F1),
+      "badge": "Raporlama",
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _featureController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          setState(() {
+            _activeFeatureIndex = (_activeFeatureIndex + 1) % _features.length;
+          });
+          _featureController.forward(from: 0.0);
+        }
+      });
+    _featureController.forward();
+  }
+
+  @override
+  void dispose() {
+    _featureController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1E3A5F), Color(0xFF1A3448), Color(0xFF1B3A2E)],
-          stops: [0.0, 0.5, 1.0],
+          colors: [
+            Color(0xFF0B132B),
+            Color(0xFF1C2541),
+            Color(0xFF0F172A),
+          ],
+          stops: [0.0, 0.55, 1.0],
         ),
       ),
       child: Stack(
         children: [
-          // ── Sahne orb'ları ──────────────────────────────────────────────
+          // ── Dinamik Işık Orb'ları ──────────────────────────────────────────
           AnimatedBuilder(
-            animation: orbController,
+            animation: widget.orbController,
             builder: (_, child) {
-              final t = orbController.value * 2 * math.pi;
+              final t = widget.orbController.value * 2 * math.pi;
               return Stack(
                 children: [
                   Positioned(
-                    top: 80 + math.sin(t * 0.7) * 40,
-                    left: 60 + math.cos(t * 0.5) * 30,
+                    top: 60 + math.sin(t * 0.7) * 35,
+                    left: 40 + math.cos(t * 0.5) * 25,
                     child: _Orb(
-                      size: 380,
+                      size: 420,
                       color: const Color(0xFF10B981),
-                      alpha: 0.14,
+                      alpha: 0.16,
                     ),
                   ),
                   Positioned(
-                    bottom: 100 + math.sin(t * 0.4 + 1) * 50,
-                    right: 40 + math.cos(t * 0.6) * 25,
+                    bottom: 80 + math.sin(t * 0.4 + 1) * 45,
+                    right: 30 + math.cos(t * 0.6) * 20,
                     child: _Orb(
-                      size: 260,
+                      size: 320,
+                      color: const Color(0xFF06B6D4),
+                      alpha: 0.15,
+                    ),
+                  ),
+                  Positioned(
+                    top: 240 + math.cos(t * 0.3 + 2) * 30,
+                    right: 60 + math.sin(t * 0.8) * 20,
+                    child: _Orb(
+                      size: 200,
                       color: const Color(0xFF6366F1),
-                      alpha: 0.13,
-                    ),
-                  ),
-                  Positioned(
-                    top: 200 + math.cos(t * 0.3 + 2) * 35,
-                    right: 80 + math.sin(t * 0.8) * 20,
-                    child: _Orb(
-                      size: 140,
-                      color: const Color(0xFFF59E0B),
-                      alpha: 0.12,
+                      alpha: 0.14,
                     ),
                   ),
                 ],
@@ -530,53 +590,66 @@ class _HeroPanel extends StatelessWidget {
             },
           ),
 
-          // ── Izgaralı perspektif zemin çizgisi ──────────────────────────
+          // ── Noktalı Modern Grid Zemin ────────────────────────────────────
           Positioned.fill(
             child: AnimatedBuilder(
-              animation: rotateController,
-              builder: (_, child) =>
-                  CustomPaint(painter: _GridPainter(rotateController.value)),
+              animation: widget.rotateController,
+              builder: (_, child) => CustomPaint(
+                painter: _DotGridPainter(widget.rotateController.value),
+              ),
             ),
           ),
 
-          // ── Ortadaki 3D kart ─────────────────────────────────────────
+          // ── Ortadaki 3D Glassmorphism Showcase Kartı ──────────────────────
           Center(
             child: AnimatedBuilder(
-              animation: floatController,
+              animation: widget.floatController,
               builder: (_, child) {
-                final floatY = -10.0 + floatController.value * 20.0;
+                final floatY = -8.0 + widget.floatController.value * 16.0;
                 return Transform.translate(
                   offset: Offset(0, floatY),
-                  child: _GlassCard(rotateController: rotateController),
+                  child: _HeroGlassShowcase(
+                    rotateController: widget.rotateController,
+                    activeFeature: _features[_activeFeatureIndex],
+                    featureIndex: _activeFeatureIndex,
+                    totalFeatures: _features.length,
+                    onFeatureSelect: (index) {
+                      setState(() {
+                        _activeFeatureIndex = index;
+                      });
+                      _featureController.forward(from: 0.0);
+                    },
+                  ),
                 );
               },
             ),
           ),
 
-          // ── Alt özellikler şeridi ────────────────────────────────────
+          // ── Alt Özellik Rozetleri ─────────────────────────────────────────
           Positioned(
-            bottom: 48,
+            bottom: 40,
             left: 0,
             right: 0,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _FeaturePill(
-                  icon: Icons.bolt_rounded,
-                  label: "Hızlı",
-                  color: const Color(0xFFF59E0B),
-                ),
-                const SizedBox(width: 12),
-                _FeaturePill(
-                  icon: Icons.shield_rounded,
-                  label: "Güvenilir",
+                  icon: Icons.circle,
+                  iconSize: 8,
+                  label: "Sistem Aktif",
                   color: const Color(0xFF10B981),
                 ),
                 const SizedBox(width: 12),
                 _FeaturePill(
-                  icon: Icons.auto_awesome_rounded,
-                  label: "Modern",
-                  color: const Color(0xFF6366F1),
+                  icon: Icons.bolt_rounded,
+                  label: "Ultra Hızlı",
+                  color: const Color(0xFFF59E0B),
+                ),
+                const SizedBox(width: 12),
+                _FeaturePill(
+                  icon: Icons.verified_user_rounded,
+                  label: "Güvenli Yapı",
+                  color: const Color(0xFF06B6D4),
                 ),
               ],
             ),
@@ -614,123 +687,247 @@ class _Orb extends StatelessWidget {
   }
 }
 
-// ── _GlassCard ───────────────────────────────────────────────────────────────
+// ── _HeroGlassShowcase ───────────────────────────────────────────────────────
 
-class _GlassCard extends StatelessWidget {
+class _HeroGlassShowcase extends StatelessWidget {
   final AnimationController rotateController;
+  final Map<String, dynamic> activeFeature;
+  final int featureIndex;
+  final int totalFeatures;
+  final ValueChanged<int> onFeatureSelect;
 
-  const _GlassCard({required this.rotateController});
+  const _HeroGlassShowcase({
+    required this.rotateController,
+    required this.activeFeature,
+    required this.featureIndex,
+    required this.totalFeatures,
+    required this.onFeatureSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final featureColor = activeFeature["color"] as Color;
+
     return AnimatedBuilder(
       animation: rotateController,
       builder: (_, child) {
         final tilt =
-            math.sin(rotateController.value * 2 * math.pi * 0.5) * 0.04;
+            math.sin(rotateController.value * 2 * math.pi * 0.5) * 0.03;
         return Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
             ..setEntry(3, 2, 0.001)
             ..rotateY(tilt)
-            ..rotateX(tilt * 0.4),
+            ..rotateX(tilt * 0.3),
           child: Container(
-            width: 340,
-            padding: const EdgeInsets.all(36),
+            width: 410,
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(32),
-              color: Colors.white.withValues(alpha: 0.04),
+              color: const Color(0xFF0F172A).withValues(alpha: 0.65),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.1),
+                color: Colors.white.withValues(alpha: 0.12),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                  blurRadius: 60,
-                  spreadRadius: 10,
-                  offset: const Offset(0, 20),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  blurRadius: 50,
+                  spreadRadius: 4,
+                  offset: const Offset(0, 16),
                 ),
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.4),
-                  blurRadius: 40,
-                  offset: const Offset(0, 10),
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 36,
+                  offset: const Offset(0, 12),
                 ),
               ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo alan
-                Container(
-                  width: 88,
-                  height: 88,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                // ── Üst Logo & Rozet Alanı ─────────────────────────────────
+                Row(
+                  children: [
+                    Container(
+                      width: 54,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF10B981), Color(0xFF059669)],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.45),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.restaurant_menu_rounded,
+                        color: Colors.white,
+                        size: 30,
+                      ),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.5),
-                        blurRadius: 30,
-                        spreadRadius: 4,
-                        offset: const Offset(0, 8),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                "NEXPOS",
+                                style: TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: -0.8,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: const Text(
+                                  "v2.0",
+                                  style: TextStyle(
+                                    color: Color(0xFF10B981),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "Akıllı Restoran & POS Otomasyonu",
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 28),
+
+                // ── Canlı Özellik Önizleme Kartı ─────────────────────────────
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOut,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: featureColor.withValues(alpha: 0.08),
+                    border: Border.all(
+                      color: featureColor.withValues(alpha: 0.25),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: featureColor.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              activeFeature["icon"] as IconData,
+                              color: featureColor,
+                              size: 22,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: featureColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Text(
+                              activeFeature["badge"] as String,
+                              style: TextStyle(
+                                color: featureColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        activeFeature["title"] as String,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        activeFeature["desc"] as String,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.65),
+                          fontSize: 13,
+                          height: 1.4,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.restaurant_menu_rounded,
-                    color: Colors.white,
-                    size: 40,
-                  ),
                 ),
-                const SizedBox(height: 28),
-                // Başlık
-                const Text(
-                  "NEXPOS",
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: -1.5,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  "Geleceğin NEXPOS Sistemi",
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.45),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                // İstatistik rozetleri
+
+                const SizedBox(height: 20),
+
+                // ── Kart Değiştirici İndikatörler ──────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _StatBadge(
-                      value: "99%",
-                      label: "Uptime",
-                      color: const Color(0xFF10B981),
-                    ),
-                    const SizedBox(width: 16),
-                    _StatBadge(
-                      value: "<1s",
-                      label: "Yanıt",
-                      color: const Color(0xFF6366F1),
-                    ),
-                    const SizedBox(width: 16),
-                    _StatBadge(
-                      value: "7/24",
-                      label: "Destek",
-                      color: const Color(0xFFF59E0B),
-                    ),
-                  ],
+                  children: List.generate(totalFeatures, (index) {
+                    final isSelected = index == featureIndex;
+                    return GestureDetector(
+                      onTap: () => onFeatureSelect(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: isSelected ? 24 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(99),
+                          color: isSelected
+                              ? featureColor
+                              : Colors.white.withValues(alpha: 0.2),
+                        ),
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),
@@ -741,64 +938,17 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-// ── _StatBadge ────────────────────────────────────────────────────────────────
-
-class _StatBadge extends StatelessWidget {
-  final String value;
-  final String label;
-  final Color color;
-
-  const _StatBadge({
-    required this.value,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: color.withValues(alpha: 0.1),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              color: color.withValues(alpha: 0.7),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── _FeaturePill ──────────────────────────────────────────────────────────────
 
 class _FeaturePill extends StatelessWidget {
   final IconData icon;
+  final double? iconSize;
   final String label;
   final Color color;
 
   const _FeaturePill({
     required this.icon,
+    this.iconSize,
     required this.label,
     required this.color,
   });
@@ -806,7 +956,7 @@ class _FeaturePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(99),
         color: Colors.white.withValues(alpha: 0.05),
@@ -815,12 +965,12 @@ class _FeaturePill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          Icon(icon, size: iconSize ?? 14, color: color),
+          const SizedBox(width: 8),
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: Colors.white.withValues(alpha: 0.8),
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -831,37 +981,39 @@ class _FeaturePill extends StatelessWidget {
   }
 }
 
-// ── _GridPainter ──────────────────────────────────────────────────────────────
+// ── _DotGridPainter ───────────────────────────────────────────────────────────
 
-class _GridPainter extends CustomPainter {
+class _DotGridPainter extends CustomPainter {
   final double progress;
-  _GridPainter(this.progress);
+  _DotGridPainter(this.progress);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF10B981).withValues(alpha: 0.04)
-      ..strokeWidth = 0.8
-      ..style = PaintingStyle.stroke;
+    final dotPaint = Paint()..style = PaintingStyle.fill;
+    const spacing = 32.0;
+    final cols = (size.width / spacing).ceil();
+    final rows = (size.height / spacing).ceil();
 
-    const cols = 12;
-    const rows = 10;
-    final dx = size.width / cols;
-    final dy = size.height / rows;
-    final offsetY = (progress * dy) % dy;
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+    final maxDist = math.sqrt(centerX * centerX + centerY * centerY);
 
-    for (var c = 0; c <= cols; c++) {
-      canvas.drawLine(Offset(c * dx, 0), Offset(c * dx, size.height), paint);
-    }
-    for (var r = -1; r <= rows + 1; r++) {
-      canvas.drawLine(
-        Offset(0, r * dy + offsetY),
-        Offset(size.width, r * dy + offsetY),
-        paint,
-      );
+    for (var i = 0; i <= cols; i++) {
+      for (var j = 0; j <= rows; j++) {
+        final x = i * spacing;
+        final y = j * spacing;
+        final dist = math.sqrt(
+          math.pow(x - centerX, 2) + math.pow(y - centerY, 2),
+        );
+        final opacity = (1.0 - (dist / maxDist)).clamp(0.02, 0.16);
+
+        dotPaint.color = const Color(0xFF10B981).withValues(alpha: opacity);
+        canvas.drawCircle(Offset(x, y), 1.6, dotPaint);
+      }
     }
   }
 
   @override
-  bool shouldRepaint(_GridPainter old) => old.progress != progress;
+  bool shouldRepaint(_DotGridPainter old) => old.progress != progress;
 }
+
