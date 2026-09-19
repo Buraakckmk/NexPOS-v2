@@ -4195,7 +4195,7 @@ class _ReceiptSidebar extends StatelessWidget {
                                       0;
                                   final name = (table["display_name"] ?? "Masa")
                                       .toString();
-                                  final zone = (table["zone"] ?? "Salon")
+                                  final zone = (table["zone"] ?? "Oyun Salonu")
                                       .toString();
                                   return DropdownMenuItem<int>(
                                     value: id,

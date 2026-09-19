@@ -169,7 +169,7 @@ async function createSchema(client) {
       id BIGSERIAL PRIMARY KEY,
       table_code VARCHAR(20) NOT NULL UNIQUE,
       display_name VARCHAR(80) NOT NULL,
-      zone VARCHAR(60) NOT NULL DEFAULT 'Salon',
+      zone VARCHAR(60) NOT NULL DEFAULT 'Oyun Salonu',
       capacity INT NOT NULL DEFAULT 4 CHECK (capacity > 0),
       is_custom BOOLEAN NOT NULL DEFAULT FALSE,
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -180,7 +180,7 @@ async function createSchema(client) {
 
   await client.query(`
     ALTER TABLE tables
-    ADD COLUMN IF NOT EXISTS zone VARCHAR(60) NOT NULL DEFAULT 'Salon';
+    ADD COLUMN IF NOT EXISTS zone VARCHAR(60) NOT NULL DEFAULT 'Oyun Salonu';
   `);
 
   await client.query(`

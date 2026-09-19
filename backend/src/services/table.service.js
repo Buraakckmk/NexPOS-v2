@@ -69,7 +69,7 @@ async function createCustomTable({ displayName, zone, capacity = 4 }) {
   await ensureTableSchema();
 
   const normalizedName = String(displayName ?? "").trim();
-  const normalizedZone = String(zone ?? "").trim() || "Salon";
+  const normalizedZone = String(zone ?? "").trim() || "Oyun Salonu";
   const normalizedCapacity = Number(capacity);
 
   if (!normalizedName) {

@@ -54,9 +54,9 @@ class TableItem {
   }
 
   factory TableItem.fromJson(Map<String, dynamic> json) {
-    final zone = ((json["zone"] ?? "Salon").toString().trim().isEmpty
-        ? "Salon"
-        : (json["zone"] ?? "Salon").toString().trim());
+    final zone = ((json["zone"] ?? "Oyun Salonu").toString().trim().isEmpty
+        ? "Oyun Salonu"
+        : (json["zone"] ?? "Oyun Salonu").toString().trim());
     final name = (json["display_name"] ?? "").toString().trim();
     final code = (json["table_code"] ?? "").toString().trim();
     final rawLabel = name.isNotEmpty ? name : (code.isNotEmpty ? code : "Masa");

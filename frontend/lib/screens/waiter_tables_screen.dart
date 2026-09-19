@@ -306,7 +306,7 @@ class _WaiterTablesScreenState extends State<WaiterTablesScreen>
     if (!mounted) return;
 
     final List<String> existingZones = _buildZoneFilters(tables);
-    if (!existingZones.contains("Salon")) existingZones.add("Salon");
+    if (!existingZones.contains("Oyun Salonu")) existingZones.add("Oyun Salonu");
 
     String selectedZone =
         (_selectedZone != null &&

@@ -989,7 +989,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                   ),
                   subtitle: const Text(
-                    "Salon, Bahçe ve Teras masalarını canlı izleyin",
+                    "Oyun Salonu ve VIP masalarını canlı izleyin",
                     style: TextStyle(color: Color(0xFF64748B)),
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF0F172A)),
