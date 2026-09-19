@@ -489,25 +489,25 @@ class _HeroPanelState extends State<_HeroPanel>
 
   final List<Map<String, dynamic>> _features = const [
     {
-      "icon": Icons.table_restaurant_rounded,
-      "title": "Akıllı Masa & Sipariş",
-      "desc": "Masa durumları, hızlı adisyon alma, masa bölme & taşıma işlemleri.",
+      "icon": Icons.hub_rounded,
+      "title": "Node #1: Akıllı Masa & Sipariş",
+      "desc": "Masa durumları, hızlı adisyon alma, masa bölme & birleştirme.",
       "color": Color(0xFF10B981),
       "badge": "Hızlı POS",
     },
     {
-      "icon": Icons.print_rounded,
-      "title": "Mutfak & Bar Yönlendirme",
-      "desc": "Mutfak, Bar ve Kasa yazıcılarına siparişlerin anlık iletimi.",
-      "color": Color(0xFF0EA5E9),
-      "badge": "Otomatik Print",
+      "icon": Icons.bolt_rounded,
+      "title": "Node #2: Mutfak & Bar Routing",
+      "desc": "Mutfak, Bar ve Kasa yazıcılarına siparişlerin eşzamanlı aktarımı.",
+      "color": Color(0xFF06B6D4),
+      "badge": "Anlık Print",
     },
     {
-      "icon": Icons.analytics_rounded,
-      "title": "Canlı Ciro & Z-Raporu",
-      "desc": "Anlık günlük ciro analitiği, detaylı gider takibi ve bakiyeler.",
-      "color": Color(0xFF6366F1),
-      "badge": "Raporlama",
+      "icon": Icons.auto_graph_rounded,
+      "title": "Node #3: Ciro & Z-Raporu",
+      "desc": "Günlük canlı ciro analitiği, detaylı gider takibi ve müşteri bakiyeleri.",
+      "color": Color(0xFFA855F7),
+      "badge": "Analitik",
     },
   ];
 
@@ -542,15 +542,16 @@ class _HeroPanelState extends State<_HeroPanel>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFFF8FAFC),
-            Color(0xFFF1F5F9),
-            Color(0xFFE2E8F0),
+            Color(0xFF030712),
+            Color(0xFF090D16),
+            Color(0xFF0D111D),
           ],
+          stops: [0.0, 0.5, 1.0],
         ),
       ),
       child: Stack(
         children: [
-          // ── Yumuşak Işık Halesi ──────────────────────────────────────────
+          // ── Uzay Boşluğu Nebula Işık Işıtmaları ──────────────────────────
           AnimatedBuilder(
             animation: widget.orbController,
             builder: (_, child) {
@@ -558,21 +559,30 @@ class _HeroPanelState extends State<_HeroPanel>
               return Stack(
                 children: [
                   Positioned(
-                    top: 40 + math.sin(t * 0.7) * 30,
-                    left: 40 + math.cos(t * 0.5) * 20,
+                    top: 40 + math.sin(t * 0.7) * 40,
+                    left: 20 + math.cos(t * 0.5) * 30,
                     child: _Orb(
-                      size: 440,
+                      size: 450,
                       color: const Color(0xFF10B981),
-                      alpha: 0.08,
+                      alpha: 0.15,
                     ),
                   ),
                   Positioned(
-                    bottom: 60 + math.sin(t * 0.4 + 1) * 35,
-                    right: 20 + math.cos(t * 0.6) * 20,
+                    bottom: 40 + math.sin(t * 0.4 + 1) * 50,
+                    right: 10 + math.cos(t * 0.6) * 25,
                     child: _Orb(
-                      size: 360,
-                      color: const Color(0xFF0EA5E9),
-                      alpha: 0.07,
+                      size: 380,
+                      color: const Color(0xFF06B6D4),
+                      alpha: 0.16,
+                    ),
+                  ),
+                  Positioned(
+                    top: 200 + math.cos(t * 0.3 + 2) * 35,
+                    right: 40 + math.sin(t * 0.8) * 20,
+                    child: _Orb(
+                      size: 260,
+                      color: const Color(0xFFA855F7),
+                      alpha: 0.14,
                     ),
                   ),
                 ],
@@ -580,17 +590,17 @@ class _HeroPanelState extends State<_HeroPanel>
             },
           ),
 
-          // ── Zarif Noktalı Arka Plan ──────────────────────────────────────
+          // ── Uzay Boşluğunda DNA Helix & Bağlı Gezegen Düğüm Çizimi ───────
           Positioned.fill(
             child: AnimatedBuilder(
               animation: widget.rotateController,
               builder: (_, child) => CustomPaint(
-                painter: _LightDotGridPainter(widget.rotateController.value),
+                painter: _Web3DNACosmicPainter(widget.rotateController.value),
               ),
             ),
           ),
 
-          // ── Ortadaki Şık Vitrin Kartı ───────────────────────────────────
+          // ── Ortadaki Holografik Web3 Vitrin Kartı ─────────────────────────
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -598,10 +608,10 @@ class _HeroPanelState extends State<_HeroPanel>
                 child: AnimatedBuilder(
                   animation: widget.floatController,
                   builder: (_, child) {
-                    final floatY = -6.0 + widget.floatController.value * 12.0;
+                    final floatY = -8.0 + widget.floatController.value * 16.0;
                     return Transform.translate(
                       offset: Offset(0, floatY),
-                      child: _HeroLightShowcase(
+                      child: _HeroWeb3GlassShowcase(
                         rotateController: widget.rotateController,
                         activeFeature: _features[_activeFeatureIndex],
                         featureIndex: _activeFeatureIndex,
@@ -620,7 +630,7 @@ class _HeroPanelState extends State<_HeroPanel>
             ),
           ),
 
-          // ── Alt Özellik Rozetleri ─────────────────────────────────────────
+          // ── Alt Cyber Rozetleri ──────────────────────────────────────────
           Positioned(
             bottom: 32,
             left: 0,
@@ -629,22 +639,21 @@ class _HeroPanelState extends State<_HeroPanel>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _FeaturePill(
-                  icon: Icons.circle,
-                  iconSize: 8,
-                  label: "Sistem Aktif",
-                  color: const Color(0xFF10B981),
+                  icon: Icons.public_rounded,
+                  label: "Web3 Altyapı",
+                  color: const Color(0xFF06B6D4),
                 ),
                 const SizedBox(width: 12),
                 _FeaturePill(
                   icon: Icons.bolt_rounded,
-                  label: "Ultra Hızlı",
-                  color: const Color(0xFFF59E0B),
+                  label: "0ms Senkron",
+                  color: const Color(0xFF10B981),
                 ),
                 const SizedBox(width: 12),
                 _FeaturePill(
-                  icon: Icons.verified_user_rounded,
-                  label: "Güvenli Altyapı",
-                  color: const Color(0xFF0EA5E9),
+                  icon: Icons.security_rounded,
+                  label: "Şifreli PIN",
+                  color: const Color(0xFFA855F7),
                 ),
               ],
             ),
@@ -682,16 +691,16 @@ class _Orb extends StatelessWidget {
   }
 }
 
-// ── _HeroLightShowcase ───────────────────────────────────────────────────────
+// ── _HeroWeb3GlassShowcase ───────────────────────────────────────────────────
 
-class _HeroLightShowcase extends StatelessWidget {
+class _HeroWeb3GlassShowcase extends StatelessWidget {
   final AnimationController rotateController;
   final Map<String, dynamic> activeFeature;
   final int featureIndex;
   final int totalFeatures;
   final ValueChanged<int> onFeatureSelect;
 
-  const _HeroLightShowcase({
+  const _HeroWeb3GlassShowcase({
     required this.rotateController,
     required this.activeFeature,
     required this.featureIndex,
@@ -703,218 +712,233 @@ class _HeroLightShowcase extends StatelessWidget {
   Widget build(BuildContext context) {
     final featureColor = activeFeature["color"] as Color;
 
-    return Container(
-      width: 420,
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        color: Colors.white,
-        border: Border.all(
-          color: const Color(0xFFE2E8F0),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.06),
-            blurRadius: 36,
-            spreadRadius: 2,
-            offset: const Offset(0, 16),
-          ),
-          BoxShadow(
-            color: const Color(0xFF10B981).withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ── Üst Logo & Başlık ──────────────────────────────────────────
-          Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF10B981), Color(0xFF059669)],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.restaurant_menu_rounded,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Text(
-                          "NEXPOS",
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF0F172A),
-                            letterSpacing: -0.8,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: const Color(0xFF10B981).withValues(alpha: 0.25),
-                            ),
-                          ),
-                          child: const Text(
-                            "v2.0",
-                            style: TextStyle(
-                              color: Color(0xFF059669),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      "Akıllı Restoran & POS Otomasyonu",
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Canlı Özellik Kartı ───────────────────────────────────────
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeInOut,
-            padding: const EdgeInsets.all(20),
+    return AnimatedBuilder(
+      animation: rotateController,
+      builder: (_, child) {
+        final tilt =
+            math.sin(rotateController.value * 2 * math.pi * 0.5) * 0.03;
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.001)
+            ..rotateY(tilt)
+            ..rotateX(tilt * 0.3),
+          child: Container(
+            width: 420,
+            padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: featureColor.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(28),
+              color: const Color(0xFF090F1E).withValues(alpha: 0.75),
               border: Border.all(
-                color: featureColor.withValues(alpha: 0.2),
-                width: 1.2,
+                color: featureColor.withValues(alpha: 0.35),
+                width: 1.5,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: featureColor.withValues(alpha: 0.2),
+                  blurRadius: 50,
+                  spreadRadius: 4,
+                  offset: const Offset(0, 16),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  blurRadius: 36,
+                  offset: const Offset(0, 12),
+                ),
+              ],
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
+                // ── Üst Logo & Başlık ──────────────────────────────────────
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      width: 56,
+                      height: 56,
                       decoration: BoxDecoration(
-                        color: featureColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(18),
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF06B6D4).withValues(alpha: 0.5),
+                            blurRadius: 20,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                      child: Icon(
-                        activeFeature["icon"] as IconData,
-                        color: featureColor,
-                        size: 22,
+                      child: const Icon(
+                        Icons.restaurant_menu_rounded,
+                        color: Colors.white,
+                        size: 32,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: featureColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Text(
-                        activeFeature["badge"] as String,
-                        style: TextStyle(
-                          color: featureColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                "NEXPOS",
+                                style: TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: -0.8,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF06B6D4).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: const Color(0xFF06B6D4).withValues(alpha: 0.35),
+                                  ),
+                                ),
+                                child: const Text(
+                                  "WEB3",
+                                  style: TextStyle(
+                                    color: Color(0xFF06B6D4),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "Akıllı Restoran & POS Otomasyonu",
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.65),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  activeFeature["title"] as String,
-                  style: const TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3,
+
+                const SizedBox(height: 24),
+
+                // ── Canlı Özellik Kartı ───────────────────────────────────────
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeInOut,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: featureColor.withValues(alpha: 0.1),
+                    border: Border.all(
+                      color: featureColor.withValues(alpha: 0.3),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: featureColor.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              activeFeature["icon"] as IconData,
+                              color: featureColor,
+                              size: 22,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: featureColor.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Text(
+                              activeFeature["badge"] as String,
+                              style: TextStyle(
+                                color: featureColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        activeFeature["title"] as String,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        activeFeature["desc"] as String,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 13,
+                          height: 1.4,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  activeFeature["desc"] as String,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
-                    fontSize: 13,
-                    height: 1.4,
-                    fontWeight: FontWeight.w400,
-                  ),
+
+                const SizedBox(height: 20),
+
+                // ── İndikatörler ──────────────────────────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(totalFeatures, (index) {
+                    final isSelected = index == featureIndex;
+                    return GestureDetector(
+                      onTap: () => onFeatureSelect(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: isSelected ? 24 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(99),
+                          color: isSelected
+                              ? featureColor
+                              : Colors.white.withValues(alpha: 0.2),
+                        ),
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),
           ),
-
-          const SizedBox(height: 20),
-
-          // ── İndikatörler ──────────────────────────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(totalFeatures, (index) {
-              final isSelected = index == featureIndex;
-              return GestureDetector(
-                onTap: () => onFeatureSelect(index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: isSelected ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(99),
-                    color: isSelected
-                        ? featureColor
-                        : const Color(0xFFCBD5E1),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -940,11 +964,11 @@ class _FeaturePill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(99),
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        color: const Color(0xFF0F172A).withValues(alpha: 0.7),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -957,8 +981,8 @@ class _FeaturePill extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF334155),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -969,40 +993,100 @@ class _FeaturePill extends StatelessWidget {
   }
 }
 
-// ── _LightDotGridPainter ──────────────────────────────────────────────────────
+// ── _Web3DNACosmicPainter ─────────────────────────────────────────────────────
 
-class _LightDotGridPainter extends CustomPainter {
+class _Web3DNACosmicPainter extends CustomPainter {
   final double progress;
-  _LightDotGridPainter(this.progress);
+  _Web3DNACosmicPainter(this.progress);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final dotPaint = Paint()..style = PaintingStyle.fill;
-    const spacing = 32.0;
-    final cols = (size.width / spacing).ceil();
-    final rows = (size.height / spacing).ceil();
+    final t = progress * 2 * math.pi;
 
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
-    final maxDist = math.sqrt(centerX * centerX + centerY * centerY);
+    // 1. Yıldızlar (Star Field)
+    final starPaint = Paint()..style = PaintingStyle.fill;
+    final random = math.Random(42);
 
-    for (var i = 0; i <= cols; i++) {
-      for (var j = 0; j <= rows; j++) {
-        final x = i * spacing;
-        final y = j * spacing;
-        final dist = math.sqrt(
-          math.pow(x - centerX, 2) + math.pow(y - centerY, 2),
-        );
-        final opacity = (1.0 - (dist / maxDist)).clamp(0.02, 0.12);
+    for (var i = 0; i < 70; i++) {
+      final sx = random.nextDouble() * size.width;
+      final sy = random.nextDouble() * size.height;
+      final radius = random.nextDouble() * 1.8 + 0.6;
+      final twinkle = 0.2 + 0.8 * math.sin(t * 2 + i).abs();
 
-        dotPaint.color = const Color(0xFF0F172A).withValues(alpha: opacity);
-        canvas.drawCircle(Offset(x, y), 1.5, dotPaint);
+      starPaint.color = Colors.white.withValues(alpha: twinkle * 0.4);
+      canvas.drawCircle(Offset(sx, sy), radius, starPaint);
+    }
+
+    // 2. DNA Helix & Bağlı Gezegen Düğümleri
+    final linePaint = Paint()
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    final glowPaint = Paint()..style = PaintingStyle.fill;
+
+    const nodeCount = 14;
+    final pointsA = <Offset>[];
+    final pointsB = <Offset>[];
+
+    final amplitude = size.width * 0.14;
+    final centerY = size.height * 0.5;
+
+    for (var i = 0; i < nodeCount; i++) {
+      final fraction = i / (nodeCount - 1);
+      final x = size.width * 0.1 + fraction * (size.width * 0.8);
+      final angle = fraction * math.pi * 3.5 + t;
+
+      final y1 = centerY + math.sin(angle) * amplitude;
+      final y2 = centerY - math.sin(angle) * amplitude;
+
+      pointsA.add(Offset(x, y1));
+      pointsB.add(Offset(x, y2));
+    }
+
+    // DNA Merdiven Çizgileri (Connecting rungs)
+    for (var i = 0; i < nodeCount; i++) {
+      final pA = pointsA[i];
+      final pB = pointsB[i];
+
+      final rungProgress = (i / nodeCount + progress) % 1.0;
+      final color = Color.lerp(
+        const Color(0xFF10B981),
+        const Color(0xFF06B6D4),
+        rungProgress,
+      )!;
+
+      linePaint.color = color.withValues(alpha: 0.22);
+      canvas.drawLine(pA, pB, linePaint);
+
+      // Helix Sarmal Çizgileri
+      if (i > 0) {
+        linePaint.color = const Color(0xFF10B981).withValues(alpha: 0.35);
+        canvas.drawLine(pointsA[i - 1], pA, linePaint);
+
+        linePaint.color = const Color(0xFF06B6D4).withValues(alpha: 0.35);
+        canvas.drawLine(pointsB[i - 1], pB, linePaint);
       }
+
+      // Gezegen Düğümleri (Node Orbs)
+      final nodeRadius = 3.5 + math.sin(t + i) * 1.0;
+
+      glowPaint.color = const Color(0xFF10B981).withValues(alpha: 0.8);
+      canvas.drawCircle(pA, nodeRadius, glowPaint);
+
+      glowPaint.color = const Color(0xFF10B981).withValues(alpha: 0.25);
+      canvas.drawCircle(pA, nodeRadius * 2.5, glowPaint);
+
+      glowPaint.color = const Color(0xFF06B6D4).withValues(alpha: 0.8);
+      canvas.drawCircle(pB, nodeRadius, glowPaint);
+
+      glowPaint.color = const Color(0xFF06B6D4).withValues(alpha: 0.25);
+      canvas.drawCircle(pB, nodeRadius * 2.5, glowPaint);
     }
   }
 
   @override
-  bool shouldRepaint(_LightDotGridPainter old) => old.progress != progress;
+  bool shouldRepaint(_Web3DNACosmicPainter old) => old.progress != progress;
 }
+
 
 
