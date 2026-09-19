@@ -4,6 +4,7 @@ import "package:provider/provider.dart";
 
 import "../services/api_client.dart";
 import "../services/socket_service.dart";
+import "../services/app_feedback_service.dart";
 import "../widgets/x_report_preview_dialog.dart";
 import "../models/payment_models.dart";
 import "../models/dashboard_models.dart";
