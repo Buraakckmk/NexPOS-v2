@@ -166,11 +166,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     try {
       final response = await ApiClient.dio.get("/admin/expenses");
       final data = response.data as Map<String, dynamic>;
-      final list = data["data"] as List<dynamic>? ?? [];
+      final payload = data["data"];
+      List<dynamic> list = [];
+      if (payload is Map<String, dynamic>) {
+        list = payload["expenses"] as List<dynamic>? ?? [];
+      } else if (payload is List<dynamic>) {
+        list = payload;
+      }
       return list
           .map((e) => Expense.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (e) {
+      debugPrint("Expense fetch error: $e");
       return [];
     }
   }
@@ -179,11 +186,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     try {
       final response = await ApiClient.dio.get("/admin/paid-transactions");
       final data = response.data as Map<String, dynamic>;
-      final list = data["data"] as List<dynamic>? ?? [];
+      final payload = data["data"];
+      List<dynamic> list = [];
+      if (payload is Map<String, dynamic>) {
+        list = payload["transactions"] as List<dynamic>? ?? [];
+      } else if (payload is List<dynamic>) {
+        list = payload;
+      }
       return list
           .map((e) => PaymentTransaction.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (e) {
+      debugPrint("Transaction fetch error: $e");
       return [];
     }
   }
