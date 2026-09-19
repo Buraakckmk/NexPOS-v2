@@ -372,18 +372,21 @@ class _AdminExpensesScreenState extends State<AdminExpensesScreen> {
               children: [
                 TextField(
                   controller: _searchController,
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                   decoration: const InputDecoration(
                     labelText: "Arama (Ürün Adı)",
+                    labelStyle: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.w700),
                     prefixIcon: Icon(Icons.search),
                   ),
                   onChanged: (val) => _search = val,
                 ),
                 ListTile(
-                  title: const Text("Başlangıç Tarihi"),
+                  title: const Text("Başlangıç Tarihi", style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold)),
                   subtitle: Text(
                     _startDate == null
                         ? "Seçilmedi"
                         : DateFormat("dd.MM.yyyy").format(_startDate!),
+                    style: const TextStyle(color: Color(0xFF64748B)),
                   ),
                   onTap: () async {
                     final date = await showDatePicker(
@@ -396,11 +399,12 @@ class _AdminExpensesScreenState extends State<AdminExpensesScreen> {
                   },
                 ),
                 ListTile(
-                  title: const Text("Bitiş Tarihi"),
+                  title: const Text("Bitiş Tarihi", style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold)),
                   subtitle: Text(
                     _endDate == null
                         ? "Seçilmedi"
                         : DateFormat("dd.MM.yyyy").format(_endDate!),
+                    style: const TextStyle(color: Color(0xFF64748B)),
                   ),
                   onTap: () async {
                     final date = await showDatePicker(
@@ -418,9 +422,11 @@ class _AdminExpensesScreenState extends State<AdminExpensesScreen> {
                     Expanded(
                       child: TextField(
                         controller: _minAmountController,
+                        style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: "Min Tutar",
+                          labelStyle: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700),
                         ),
                         onChanged: (val) => _minAmount = double.tryParse(val),
                       ),
@@ -429,9 +435,11 @@ class _AdminExpensesScreenState extends State<AdminExpensesScreen> {
                     Expanded(
                       child: TextField(
                         controller: _maxAmountController,
+                        style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: "Max Tutar",
+                          labelStyle: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700),
                         ),
                         onChanged: (val) => _maxAmount = double.tryParse(val),
                       ),
@@ -441,25 +449,27 @@ class _AdminExpensesScreenState extends State<AdminExpensesScreen> {
                 const Divider(),
                 DropdownButtonFormField<String>(
                   initialValue: _sortBy,
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                   decoration: const InputDecoration(labelText: "Sıralama"),
                   items: const [
                     DropdownMenuItem(
                       value: "expense_date",
-                      child: Text("Tarih"),
+                      child: Text("Tarih", style: TextStyle(color: Color(0xFF0F172A))),
                     ),
                     DropdownMenuItem(
                       value: "total_amount",
-                      child: Text("Tutar"),
+                      child: Text("Tutar", style: TextStyle(color: Color(0xFF0F172A))),
                     ),
                   ],
                   onChanged: (val) => setModalState(() => _sortBy = val!),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: _sortOrder,
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                   decoration: const InputDecoration(labelText: "Düzen"),
                   items: const [
-                    DropdownMenuItem(value: "DESC", child: Text("Azalan")),
-                    DropdownMenuItem(value: "ASC", child: Text("Artan")),
+                    DropdownMenuItem(value: "DESC", child: Text("Azalan", style: TextStyle(color: Color(0xFF0F172A)))),
+                    DropdownMenuItem(value: "ASC", child: Text("Artan", style: TextStyle(color: Color(0xFF0F172A)))),
                   ],
                   onChanged: (val) => setModalState(() => _sortOrder = val!),
                 ),

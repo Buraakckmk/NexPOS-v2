@@ -5,6 +5,7 @@ import "package:provider/provider.dart";
 import "../services/api_client.dart";
 import "../services/socket_service.dart";
 import "../services/app_feedback_service.dart";
+import "../theme/app_theme.dart";
 import "../widgets/x_report_preview_dialog.dart";
 import "../models/payment_models.dart";
 import "../models/dashboard_models.dart";
@@ -595,14 +596,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             // ── İÇERİK BÖLGESİ (BEYAZ TEMA DÜZELTMESİ) ───────────────────
             Expanded(
               child: Theme(
-                data: ThemeData.light(useMaterial3: true).copyWith(
+                data: AppTheme.light().copyWith(
+                  scaffoldBackgroundColor: const Color(0xFFF8FAFC),
                   colorScheme: const ColorScheme.light(
+                    primary: Color(0xFF10B981),
                     surface: Colors.white,
                     onSurface: Color(0xFF0F172A),
-                  ),
-                  textTheme: ThemeData.light().textTheme.apply(
-                    bodyColor: const Color(0xFF0F172A),
-                    displayColor: const Color(0xFF0F172A),
                   ),
                 ),
                 child: Container(

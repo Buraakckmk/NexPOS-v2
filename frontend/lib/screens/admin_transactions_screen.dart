@@ -353,11 +353,12 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
                 const Divider(),
                 DropdownButtonFormField<String>(
                   initialValue: _paymentMethod ?? "ALL",
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                   decoration: const InputDecoration(labelText: "Ödeme Yöntemi"),
                   items: const [
-                    DropdownMenuItem(value: "ALL", child: Text("Tümü")),
-                    DropdownMenuItem(value: "CASH", child: Text("Nakit")),
-                    DropdownMenuItem(value: "CARD", child: Text("Kredi Kartı")),
+                    DropdownMenuItem(value: "ALL", child: Text("Tümü", style: TextStyle(color: Color(0xFF0F172A)))),
+                    DropdownMenuItem(value: "CASH", child: Text("Nakit", style: TextStyle(color: Color(0xFF0F172A)))),
+                    DropdownMenuItem(value: "CARD", child: Text("Kredi Kartı", style: TextStyle(color: Color(0xFF0F172A)))),
                   ],
                   onChanged: (val) => setModalState(() => _paymentMethod = val),
                 ),
@@ -367,9 +368,11 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
                     Expanded(
                       child: TextField(
                         controller: _minAmountController,
+                        style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: "Min Tutar",
+                          labelStyle: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700),
                         ),
                         onChanged: (val) => _minAmount = double.tryParse(val),
                       ),
@@ -378,9 +381,11 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
                     Expanded(
                       child: TextField(
                         controller: _maxAmountController,
+                        style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: "Max Tutar",
+                          labelStyle: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700),
                         ),
                         onChanged: (val) => _maxAmount = double.tryParse(val),
                       ),
@@ -390,19 +395,21 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
                 const Divider(),
                 DropdownButtonFormField<String>(
                   initialValue: _sortBy,
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                   decoration: const InputDecoration(labelText: "Sıralama"),
                   items: const [
-                    DropdownMenuItem(value: "paid_at", child: Text("Tarih")),
-                    DropdownMenuItem(value: "amount", child: Text("Tutar")),
+                    DropdownMenuItem(value: "paid_at", child: Text("Tarih", style: TextStyle(color: Color(0xFF0F172A)))),
+                    DropdownMenuItem(value: "amount", child: Text("Tutar", style: TextStyle(color: Color(0xFF0F172A)))),
                   ],
                   onChanged: (val) => setModalState(() => _sortBy = val!),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: _sortOrder,
+                  style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                   decoration: const InputDecoration(labelText: "Düzen"),
                   items: const [
-                    DropdownMenuItem(value: "DESC", child: Text("Azalan")),
-                    DropdownMenuItem(value: "ASC", child: Text("Artan")),
+                    DropdownMenuItem(value: "DESC", child: Text("Azalan", style: TextStyle(color: Color(0xFF0F172A)))),
+                    DropdownMenuItem(value: "ASC", child: Text("Artan", style: TextStyle(color: Color(0xFF0F172A)))),
                   ],
                   onChanged: (val) => setModalState(() => _sortOrder = val!),
                 ),
