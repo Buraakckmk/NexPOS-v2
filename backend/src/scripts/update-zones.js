@@ -8,7 +8,7 @@ async function run() {
     await client.query("BEGIN");
 
     // 1. Deactivate tables in other zones (e.g. 'Salon')
-    await client.query(`UPDATE tables SET is_active = FALSE WHERE zone NOT IN ('Oyun Salonu', 'VIP', 'Balkon')`);
+    await client.query(`UPDATE tables SET is_active = FALSE WHERE zone NOT IN ('Oyun Salonu', 'VIP', 'PlayStation', 'Balkon')`);
 
     // 2. Change all 'Balkon' tables to 'Oyun Salonu'
     await client.query(`UPDATE tables SET zone = 'Oyun Salonu' WHERE zone = 'Balkon'`);
