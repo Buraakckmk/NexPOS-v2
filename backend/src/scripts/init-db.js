@@ -226,9 +226,13 @@ async function createSchema(client) {
   `);
 
   await client.query(`
+    UPDATE orders SET payment_method = 'OTHER' WHERE payment_method = 'CUSTOMER';
+  `);
+
+  await client.query(`
     ALTER TABLE orders
     ADD CONSTRAINT orders_payment_method_check
-    CHECK (payment_method IN ('CASH', 'CARD', 'MEAL_CARD', 'CUSTOMER', 'MIXED', 'OTHER'));
+    CHECK (payment_method IN ('CASH', 'CARD', 'MEAL_CARD', 'MIXED', 'OTHER'));
   `);
 
   await client.query(`
@@ -352,9 +356,13 @@ async function createSchema(client) {
   `);
 
   await client.query(`
+    UPDATE payments SET payment_method = 'OTHER' WHERE payment_method = 'CUSTOMER';
+  `);
+
+  await client.query(`
     ALTER TABLE payments
     ADD CONSTRAINT payments_payment_method_check
-    CHECK (payment_method IN ('CASH', 'CARD', 'MEAL_CARD', 'CUSTOMER', 'MIXED', 'OTHER'));
+    CHECK (payment_method IN ('CASH', 'CARD', 'MEAL_CARD', 'MIXED', 'OTHER'));
   `);
 
   await client.query(`
@@ -404,32 +412,6 @@ async function createSchema(client) {
   `);
 
   await client.query(`
-    CREATE TABLE IF NOT EXISTS customers (
-      id BIGSERIAL PRIMARY KEY,
-      full_name VARCHAR(140) NOT NULL,
-      phone VARCHAR(20),
-      email VARCHAR(100),
-      balance NUMERIC(12, 2) NOT NULL DEFAULT 0,
-      note TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `);
-
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS customer_transactions (
-      id BIGSERIAL PRIMARY KEY,
-      customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-      order_id BIGINT REFERENCES orders(id) ON DELETE SET NULL,
-      type VARCHAR(20) NOT NULL CHECK (type IN ('DEBIT', 'CREDIT')),
-      amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
-      note TEXT,
-      created_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `);
-
-  await client.query(`
     CREATE TABLE IF NOT EXISTS print_queue (
       id BIGSERIAL PRIMARY KEY,
       printer_route VARCHAR(20) NOT NULL CHECK (printer_route IN ('MUTFAK', 'BAR', 'KASA')),
@@ -464,8 +446,6 @@ async function createSchema(client) {
     CREATE INDEX IF NOT EXISTS idx_voids_order_id ON voids(order_id);
     CREATE INDEX IF NOT EXISTS idx_z_reports_report_date ON z_reports(report_date);
     CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON expenses(expense_date);
-    CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
-    CREATE INDEX IF NOT EXISTS idx_customer_transactions_customer_id ON customer_transactions(customer_id);
     CREATE INDEX IF NOT EXISTS idx_print_queue_status ON print_queue(status);
   `);
 }

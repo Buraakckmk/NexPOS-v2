@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS orders (
   waiter_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   opened_by_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   closed_by_user_id BIGINT REFERENCES users(id) ON DELETE RESTRICT,
-  payment_method VARCHAR(20) CHECK (payment_method IN ('CASH', 'CARD', 'MEAL_CARD', 'CUSTOMER', 'MIXED', 'OTHER')),
+  payment_method VARCHAR(20) CHECK (payment_method IN ('CASH', 'CARD', 'MEAL_CARD', 'MIXED', 'OTHER')),
   order_status VARCHAR(20) NOT NULL DEFAULT 'OPEN' CHECK (order_status IN ('OPEN', 'CONFIRMED', 'PAID', 'CANCELLED')),
   note TEXT,
   guest_count INT NOT NULL DEFAULT 1 CHECK (guest_count > 0),
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS payments (
   id BIGSERIAL PRIMARY KEY,
   order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
   received_by_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'CARD', 'MEAL_CARD', 'CUSTOMER', 'MIXED', 'OTHER')),
+  payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'CARD', 'MEAL_CARD', 'MIXED', 'OTHER')),
   amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
   discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (discount_amount >= 0),
   currency VARCHAR(3) NOT NULL DEFAULT 'TRY',
@@ -152,30 +152,6 @@ CREATE TABLE IF NOT EXISTS expenses (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 11. CUSTOMERS TABLE
-CREATE TABLE IF NOT EXISTS customers (
-  id BIGSERIAL PRIMARY KEY,
-  full_name VARCHAR(140) NOT NULL,
-  phone VARCHAR(20),
-  email VARCHAR(100),
-  balance NUMERIC(12, 2) NOT NULL DEFAULT 0,
-  note TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- 12. CUSTOMER TRANSACTIONS TABLE
-CREATE TABLE IF NOT EXISTS customer_transactions (
-  id BIGSERIAL PRIMARY KEY,
-  customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-  order_id BIGINT REFERENCES orders(id) ON DELETE SET NULL,
-  type VARCHAR(20) NOT NULL CHECK (type IN ('DEBIT', 'CREDIT')),
-  amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
-  note TEXT,
-  created_by_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 -- 13. PRINT QUEUE TABLE
 CREATE TABLE IF NOT EXISTS print_queue (
   id BIGSERIAL PRIMARY KEY,
@@ -209,8 +185,6 @@ CREATE INDEX IF NOT EXISTS idx_payments_paid_at ON payments(paid_at);
 CREATE INDEX IF NOT EXISTS idx_voids_order_id ON voids(order_id);
 CREATE INDEX IF NOT EXISTS idx_z_reports_report_date ON z_reports(report_date);
 CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON expenses(expense_date);
-CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
-CREATE INDEX IF NOT EXISTS idx_customer_transactions_customer_id ON customer_transactions(customer_id);
 CREATE INDEX IF NOT EXISTS idx_print_queue_status ON print_queue(status);
 
 -- DEFAULT USERS

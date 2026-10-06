@@ -20,9 +20,12 @@ async function listActiveProductsForWaiter() {
       c.id AS category_id,
       COALESCE(NULLIF(p.category, ''), c.name) AS category_name,
       c.image_path AS category_image_path,
+      c.parent_category_id,
+      pc.name AS parent_category_name,
       COALESCE(ps.total_qty, 0) AS sales_qty
     FROM products p
     JOIN categories c ON c.id = p.category_id
+    LEFT JOIN categories pc ON pc.id = c.parent_category_id
     LEFT JOIN product_sales ps ON ps.product_id = p.id
     WHERE p.is_active = TRUE
       AND c.is_active = TRUE

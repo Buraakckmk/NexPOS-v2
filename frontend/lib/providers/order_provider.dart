@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/foundation.dart";
 import "package:dio/dio.dart";
 
@@ -138,6 +140,10 @@ class MenuProduct {
   final int categoryId;
   final String categoryName;
   final String categoryImagePath;
+  // Sub-category support: if this product belongs to a child category,
+  // parentCategoryId/Name reflect the parent category.
+  final int? parentCategoryId;
+  final String? parentCategoryName;
 
   const MenuProduct({
     required this.id,
@@ -147,7 +153,16 @@ class MenuProduct {
     required this.categoryId,
     required this.categoryName,
     required this.categoryImagePath,
+    this.parentCategoryId,
+    this.parentCategoryName,
   });
+
+  /// The "top-level" category this product ultimately belongs to.
+  /// If this product is in a sub-category, returns the parent name;
+  /// otherwise returns categoryName.
+  String get topLevelCategory => parentCategoryName ?? categoryName;
+
+  bool get hasParentCategory => parentCategoryId != null && parentCategoryId! > 0;
 
   factory MenuProduct.fromJson(Map<String, dynamic> json) {
     final id = _safeInt(
@@ -193,6 +208,18 @@ class MenuProduct {
         "imagePath",
       ]),
     );
+    final rawParentId = _pickFirst(
+      json,
+      const ["parent_category_id", "parentCategoryId"],
+    );
+    final parentCategoryId =
+        rawParentId != null ? _safeInt(rawParentId) : null;
+    final parentCategoryName = _normalizedText(
+      _pickFirst(
+        json,
+        const ["parent_category_name", "parentCategoryName"],
+      ),
+    );
 
     return MenuProduct(
       id: id,
@@ -202,6 +229,11 @@ class MenuProduct {
       categoryId: categoryId,
       categoryName: categoryName.isEmpty ? "DIGER" : categoryName,
       categoryImagePath: categoryImagePath,
+      parentCategoryId: (parentCategoryId != null && parentCategoryId > 0)
+          ? parentCategoryId
+          : null,
+      parentCategoryName:
+          parentCategoryName.isNotEmpty ? parentCategoryName : null,
     );
   }
 }
@@ -356,6 +388,7 @@ class OrderProvider extends ChangeNotifier {
 
   bool _isLoadingProducts = false;
   bool _isLoadingActiveOrder = false;
+  bool _activeOrderReloadQueued = false;
   bool _isSubmitting = false;
   bool _isCheckingOut = false;
   bool _isPaymentSessionActive = false;
@@ -375,6 +408,7 @@ class OrderProvider extends ChangeNotifier {
   final Set<int> _lastSentProductIds = <int>{};
   int? _lastAddedProductId;
   String? _activeOrderId;
+  DateTime? _activeOrderCreatedAt;
   DateTime? _lastSentAt;
   DateTime? _lastAddedAt;
   int _guestCount = 1;
@@ -407,13 +441,35 @@ class OrderProvider extends ChangeNotifier {
   DateTime? get lastSentAt => _lastSentAt;
   DateTime? get lastAddedAt => _lastAddedAt;
 
+  /// Returns only top-level (root) category names — i.e. categories that have
+  /// no parent. Sub-categories are NOT included here; use [subCategoriesOf].
   List<String> get categories {
     final set = <String>{};
     for (final p in _products) {
-      set.add(p.categoryName);
+      // If the product belongs to a sub-category, register the parent as the
+      // top-level category; otherwise register the category itself.
+      final topLevel = p.topLevelCategory;
+      set.add(topLevel);
     }
     return set.toList();
   }
+
+  /// Returns the sub-category names that are direct children of [parentCategoryName].
+  List<String> subCategoriesOf(String parentCategoryName) {
+    final normParent = _normalizeCategory(parentCategoryName);
+    final seen = <String>{};
+    for (final p in _products) {
+      if (p.parentCategoryName != null &&
+          _normalizeCategory(p.parentCategoryName!) == normParent) {
+        seen.add(p.categoryName);
+      }
+    }
+    return seen.toList();
+  }
+
+  /// Whether [categoryName] has any sub-categories.
+  bool hasSubCategories(String categoryName) =>
+      subCategoriesOf(categoryName).isNotEmpty;
 
   String? categoryImagePathFor(String categoryName) {
     for (final product in _products) {
@@ -463,14 +519,29 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+
   List<MenuProduct> get filteredProducts {
     final query = _searchQuery.trim().toLowerCase();
     final selectedCategoryNorm = _normalizeCategory(_selectedCategory);
+
+    if (selectedCategoryNorm.isEmpty) {
+      // No category filter — show all (search still applies)
+      if (query.isEmpty) return List.unmodifiable(_products);
+      return _products
+          .where((p) => p.name.toLowerCase().contains(query))
+          .toList();
+    }
+
     return _products.where((p) {
-      final categoryOk =
-          selectedCategoryNorm.isEmpty ||
+      // Check whether this product belongs to the selected category.
+      // Case A: direct match on categoryName
+      final directMatch =
           _normalizeCategory(p.categoryName) == selectedCategoryNorm;
-      if (!categoryOk) return false;
+      // Case B: the selected category is the parent of this product's category
+      final parentMatch = p.parentCategoryName != null &&
+          _normalizeCategory(p.parentCategoryName!) == selectedCategoryNorm;
+
+      if (!directMatch && !parentMatch) return false;
       if (query.isEmpty) return true;
       return p.name.toLowerCase().contains(query);
     }).toList();
@@ -502,10 +573,22 @@ class OrderProvider extends ChangeNotifier {
 
           final existingQty = _existingItems[id] ?? 0;
           final newQty = _cart[id] ?? 0;
-          final resolvedPrice = _resolveUnitPrice(id, product.price);
-          final existingLineTotal =
+          var resolvedPrice = _resolveUnitPrice(id, product.price);
+          var existingLineTotal =
               _existingLineTotals[id] ??
               (existingQty * (_existingPrices[id] ?? product.price));
+
+          // ── PLAYSTATION SINIRSIZ LOGIC ──
+          if (product.name.trim().toLowerCase() == "sınırsız" && _activeOrderCreatedAt != null) {
+            final diff = DateTime.now().difference(_activeOrderCreatedAt!);
+            final hours = (diff.inMinutes / 60.0); // dakika başı orantılı artış
+            resolvedPrice = (hours * 200.0).roundToDouble();
+            if (existingQty > 0.0001) {
+              existingLineTotal = (existingQty * resolvedPrice);
+            }
+          }
+          // ───────────────────────────────
+
           final displayUnitPrice = (newQty <= 0.0001 && existingQty > 0.0001)
               ? (existingLineTotal / existingQty)
               : resolvedPrice;
@@ -860,11 +943,17 @@ class OrderProvider extends ChangeNotifier {
       _isLoadingProducts = false;
       _isLoadingActiveOrder = false;
       notifyListeners();
+      _runQueuedActiveOrderReload();
     }
   }
 
   Future<void> loadActiveOrderOnly() async {
-    if (_isLoadingActiveOrder || _isPaymentSessionActive) return;
+    if (_isPaymentSessionActive) return;
+    if (_isLoadingActiveOrder) {
+      _activeOrderReloadQueued = true;
+      return;
+    }
+    _activeOrderReloadQueued = false;
     _isLoadingActiveOrder = true;
     notifyListeners();
 
@@ -881,7 +970,20 @@ class OrderProvider extends ChangeNotifier {
     } finally {
       _isLoadingActiveOrder = false;
       notifyListeners();
+      _runQueuedActiveOrderReload();
     }
+  }
+
+  void _runQueuedActiveOrderReload() {
+    if (!_activeOrderReloadQueued ||
+        _isLoadingActiveOrder ||
+        _isPaymentSessionActive ||
+        _disposed) {
+      return;
+    }
+
+    _activeOrderReloadQueued = false;
+    unawaited(loadActiveOrderOnly());
   }
 
   void _updateFromActiveOrderData(Map<String, dynamic> activeOrderData) {
@@ -898,9 +1000,16 @@ class OrderProvider extends ChangeNotifier {
     _amountPaymentPaid = _safeDouble(activeOrder?["amount_payment_paid"]);
     _discountTotal = _safeDouble(activeOrder?["discount_total"]);
 
+    if (activeOrder != null && activeOrder["created_at"] != null) {
+      _activeOrderCreatedAt = DateTime.tryParse(activeOrder["created_at"].toString())?.toLocal();
+    } else {
+      _activeOrderCreatedAt = null;
+    }
+
     if (_activeOrderId == null) {
       _lastSentProductIds.clear();
       _lastSentAt = null;
+      _activeOrderCreatedAt = null;
     }
 
     _existingItems.clear();

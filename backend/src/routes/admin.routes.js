@@ -161,57 +161,12 @@ router.delete(
 	asyncHandler(productController.deleteProductAdmin)
 );
 
-const customerController = require("../controllers/customer.controller");
-
 // Son gün sonu Excel indir
 router.get(
 	"/z-report/excel",
 	authenticate,
 	authorize(ROLES.ADMIN),
 	asyncHandler(adminController.exportZReportExcel)
-);
-
-// Müşteri / Cari Hesap Yönetimi
-router.get(
-	"/customers",
-	authenticate,
-	authorize(ROLES.ADMIN, ROLES.WAITER),
-	asyncHandler(customerController.listCustomers)
-);
-
-router.get(
-	"/customers/:id",
-	authenticate,
-	authorize(ROLES.ADMIN, ROLES.WAITER),
-	asyncHandler(customerController.getCustomerById)
-);
-
-router.post(
-	"/customers",
-	authenticate,
-	authorize(ROLES.ADMIN, ROLES.WAITER),
-	asyncHandler(customerController.createCustomer)
-);
-
-router.patch(
-	"/customers/:id",
-	authenticate,
-	authorize(ROLES.ADMIN),
-	asyncHandler(customerController.updateCustomer)
-);
-
-router.delete(
-	"/customers/:id",
-	authenticate,
-	authorize(ROLES.ADMIN),
-	asyncHandler(customerController.deleteCustomer)
-);
-
-router.post(
-	"/customers/transactions",
-	authenticate,
-	authorize(ROLES.ADMIN, ROLES.WAITER),
-	asyncHandler(customerController.addTransaction)
 );
 
 module.exports = router;

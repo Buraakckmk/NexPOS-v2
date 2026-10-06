@@ -30,6 +30,11 @@ const List<_PosCategory> _kCategories = [
     Color(0xFF10B981),
   ), // Emerald
   _PosCategory(
+    "BÄ°TKÄ° ÃAYLARI",
+    Icons.local_florist_rounded,
+    Color(0xFF16A34A),
+  ), // Green-600 - Herbal Teas
+  _PosCategory(
     "TÜRK KAHVESİ ÇEŞİTLERİ",
     Icons.coffee_rounded,
     Color(0xFF78350F),
@@ -143,11 +148,7 @@ const List<_PosCategory> _kCategories = [
     Icons.smoking_rooms_rounded,
     Color(0xFF475569),
   ), // Slate-600
-  _PosCategory(
-    "TAKE AWAY",
-    Icons.takeout_dining_rounded,
-    Color(0xFF2563EB),
-  ), // Blue-600
+
 ];
 
 String _categoryImageAsset(String label) {
@@ -177,7 +178,7 @@ String _categoryImageAsset(String label) {
     "YENİ NESİL KAHVELER": "assets/yeni nesil kahveler.jpg",
     "DETOKS": "assets/detoks.jpg",
     "NARGİLE": "assets/nargile.jpeg",
-    "TAKE AWAY": "assets/take away.jpg",
+
     "FONDU-WAFFLE": "assets/föndü waffle.jpg",
     "MATCHA (MAÇA)": "assets/matcha.jpeg",
   };
@@ -338,6 +339,8 @@ class _PosOrderView extends StatefulWidget {
 class _PosOrderViewState extends State<_PosOrderView> {
   // null = show category grid, non-null = show products of that category
   String? _activeCategory;
+  // null = show all products of parent cat; non-null = show only sub-category products
+  String? _activeSubCategory;
   int? _selectedLineProductId;
   bool _hasSeenOpenOrder = false;
   bool _isAutoClosing = false;
@@ -779,6 +782,8 @@ class _PosOrderViewState extends State<_PosOrderView> {
                 _buildCategoryTabBar(order)
               else
                 const SizedBox.shrink(),
+              if (_activeCategory != null && order.hasSubCategories(_activeCategory!))
+                _buildSubCategoryTabBar(order),
               Expanded(
                 child: _activeCategory == null
                     ? _buildCategoryGrid(order)
@@ -829,49 +834,59 @@ class _PosOrderViewState extends State<_PosOrderView> {
         compactLayout ? 10 : 12,
         compactLayout ? 10 : 12,
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Sol: Kategoriler
           Expanded(
-            flex: 6,
-            child: Row(
+            flex: 2,
+            child: _buildCategoryVerticalList(order, compactLayout: compactLayout),
+          ),
+          SizedBox(width: compactLayout ? 8 : 12),
+          // Orta: Adisyon + Ürünler
+          Expanded(
+            flex: 5,
+            child: Column(
               children: [
                 Expanded(
-                  flex: 7,
+                  flex: 6,
                   child: _buildAdisyonTable(
                     order,
                     lines,
                     compactLayout: compactLayout,
                   ),
                 ),
-                SizedBox(width: compactLayout ? 8 : 12),
+                SizedBox(height: compactLayout ? 8 : 10),
                 Expanded(
-                  flex: 3,
-                  child: _buildDesktopActionPanel(
-                    context,
-                    order,
-                    canTakePayment,
-                    selectedLine,
-                    compactLayout: compactLayout,
+                  flex: 5,
+                  child: Column(
+                    children: [
+                      if (_activeCategory != null && order.hasSubCategories(_activeCategory!))
+                        _buildSubCategoryTabBar(order),
+                      Expanded(
+                        child: _activeCategory == null
+                            ? _buildCategoryPlaceholder()
+                            : _buildProductsOnlyGrid(
+                                order,
+                                compactLayout: compactLayout,
+                              ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          SizedBox(height: compactLayout ? 8 : 10),
-          // Üst-alt alanı daha dengeli tutarak ürün gridine daha fazla yer ver.
+          SizedBox(width: compactLayout ? 8 : 12),
+          // Sağ: Action Panel (Aşağı kadar uzar)
           Expanded(
-            flex: 5,
-            child: Column(
-              children: [
-                Expanded(
-                  child: _activeCategory == null
-                      ? _buildCategoryGrid(order, compactLayout: true)
-                      : _buildProductsOnlyGrid(
-                          order,
-                          compactLayout: compactLayout,
-                        ),
-                ),
-              ],
+            flex: 3,
+            child: _buildDesktopActionPanel(
+              context,
+              order,
+              canTakePayment,
+              selectedLine,
+              compactLayout: compactLayout,
             ),
           ),
         ],
@@ -1393,6 +1408,7 @@ class _PosOrderViewState extends State<_PosOrderView> {
                             AppFeedbackService.showSuccess(
                               "Yeni ürünler mutfağa gönderildi.",
                             );
+                            _navigateToHomeAfterTableClosed(context);
                           } else {
                             final msg =
                                 context.read<OrderProvider>().errorMessage ??
@@ -1620,13 +1636,7 @@ class _PosOrderViewState extends State<_PosOrderView> {
             .toList();
 
         final paymentsList = checkout.payments
-            .map(
-              (p) => {
-                "paymentMethod": p.paymentMethod,
-                "amount": p.amount,
-                "mealCardType": p.mealCardType,
-              },
-            )
+            .map((p) => {"paymentMethod": p.paymentMethod, "amount": p.amount})
             .toList();
 
         await ApiClient.dio.post(
@@ -1645,7 +1655,6 @@ class _PosOrderViewState extends State<_PosOrderView> {
             data: {
               "amount": 0,
               "paymentMethod": "CASH",
-              "mealCardType": null,
               "discountAmount": checkout.discountAmount,
               "finalTotal": checkout.netAmount,
             },
@@ -1662,7 +1671,7 @@ class _PosOrderViewState extends State<_PosOrderView> {
               data: {
                 "amount": payment.amount,
                 "paymentMethod": payment.paymentMethod,
-                "mealCardType": payment.mealCardType,
+
                 "discountAmount": i == 0 ? checkout.discountAmount : 0,
                 "finalTotal": checkout.netAmount,
               },
@@ -1780,7 +1789,7 @@ class _PosOrderViewState extends State<_PosOrderView> {
                             AppFeedbackService.showSuccess(
                               "Yeni ürünler mutfağa gönderildi.",
                             );
-                            Navigator.of(context).pop(true);
+                            _navigateToHomeAfterTableClosed(context);
                           } else {
                             final msg =
                                 context.read<OrderProvider>().errorMessage ??
@@ -2197,7 +2206,176 @@ class _PosOrderViewState extends State<_PosOrderView> {
     );
   }
 
+  // ── Sub-Category tab bar (shown when a parent category has sub-categories) ──
+  Widget _buildSubCategoryTabBar(OrderProvider order) {
+    if (_activeCategory == null) return const SizedBox.shrink();
+
+    final subCats = order.subCategoriesOf(_activeCategory!);
+    if (subCats.isEmpty) return const SizedBox.shrink();
+
+    Widget buildSubCategoryChip(String label, bool isSelected) {
+      return InkWell(
+        onTap: () {
+          final isActivating = !isSelected;
+          setState(() => _activeSubCategory = isActivating ? label : null);
+          order.setSearchQuery("");
+          order.setSelectedCategory(isActivating ? label : _activeCategory!);
+        },
+        borderRadius: BorderRadius.circular(30),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: isSelected
+                ? const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: isSelected ? null : const Color(0xFFFFFFFF),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: isSelected ? Colors.transparent : const Color(0xFFE2E8F0),
+            ),
+
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? Colors.white : const Color(0xFF475569),
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      height: 56,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        itemCount: subCats.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, i) {
+          final subCat = subCats[i];
+          return buildSubCategoryChip(subCat, _activeSubCategory == subCat);
+        },
+      ),
+    );
+  }
   // ── Category grid (27 items, 9 per row) ──────────────────────────────────
+
+  Widget _buildCategoryPlaceholder() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.touch_app_rounded, size: 48, color: Color(0xFFCBD5E1)),
+            SizedBox(height: 16),
+            Text(
+              "Kategori seçiniz",
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryVerticalList(OrderProvider order, {bool compactLayout = false}) {
+    final categories = _orderedCategoriesForDisplay(order.categories);
+
+    if (categories.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: const Center(
+          child: Text(
+            "Kategori bulunamadı.",
+            style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: ListView.separated(
+        padding: EdgeInsets.all(compactLayout ? 8 : 10),
+        physics: const BouncingScrollPhysics(),
+        itemCount: categories.length,
+        separatorBuilder: (_, __) => SizedBox(height: compactLayout ? 8 : 10),
+        itemBuilder: (context, index) {
+          final cat = categories[index];
+          final isSelected = _activeCategory == cat.label;
+          return InkWell(
+            onTap: () {
+              order.setSelectedCategory(cat.label);
+              order.setSearchQuery("");
+              setState(() {
+                _activeCategory = cat.label;
+                _activeSubCategory = null;
+              });
+            },
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              decoration: BoxDecoration(
+                color: isSelected ? cat.color.withValues(alpha: 0.12) : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isSelected ? cat.color.withValues(alpha: 0.4) : Colors.transparent,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(cat.icon, color: cat.color, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      cat.label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected ? cat.color : const Color(0xFF334155),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildCategoryGrid(OrderProvider order, {bool compactLayout = false}) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -2312,7 +2490,10 @@ class _PosOrderViewState extends State<_PosOrderView> {
       onTap: () {
         order.setSelectedCategory(cat.label);
         order.setSearchQuery("");
-        setState(() => _activeCategory = cat.label);
+        setState(() {
+          _activeCategory = cat.label;
+          _activeSubCategory = null;
+        });
       },
     );
   }
@@ -4764,13 +4945,7 @@ class _ReceiptSidebar extends StatelessWidget {
             .toList();
 
         final paymentsList = checkout.payments
-            .map(
-              (p) => {
-                "paymentMethod": p.paymentMethod,
-                "amount": p.amount,
-                "mealCardType": p.mealCardType,
-              },
-            )
+            .map((p) => {"paymentMethod": p.paymentMethod, "amount": p.amount})
             .toList();
 
         await ApiClient.dio.post(
@@ -4790,7 +4965,7 @@ class _ReceiptSidebar extends StatelessWidget {
             data: {
               "amount": payment.amount,
               "paymentMethod": payment.paymentMethod,
-              "mealCardType": payment.mealCardType,
+
               "discountAmount": i == 0 ? checkout.discountAmount : 0,
               "finalTotal": checkout.netAmount,
             },

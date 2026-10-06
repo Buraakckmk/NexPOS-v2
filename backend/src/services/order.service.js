@@ -1,6 +1,5 @@
 const db = require("../config/db");
 const printerService = require("./printer.service");
-const customerService = require("./customer.service");
 
 let ensureOrderSchemaPromise = null;
 
@@ -1253,23 +1252,6 @@ async function checkoutOrder({
       `,
       [orderId, userId, paymentMethod, grandTotal, discount, mealCardType]
     );
-
-    if (paymentMethod === "CUSTOMER" || (mealCardType && mealCardType.startsWith("CUSTOMER:"))) {
-      let custId;
-      if (mealCardType && mealCardType.startsWith("CUSTOMER:")) {
-        custId = Number(mealCardType.split(":")[1]);
-      }
-      if (custId && Number.isFinite(custId)) {
-        await customerService.addTransaction({
-          customer_id: custId,
-          order_id: orderId,
-          type: "DEBIT",
-          amount: grandTotal,
-          note: `Masa Adisyonu Cariye Aktarıldı (#${orderId})`,
-          created_by_user_id: userId,
-        });
-      }
-    }
 
     await client.query(
       `

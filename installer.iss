@@ -1,9 +1,9 @@
 ; NexPOS - Inno Setup Script
 ; Bu projede Flutter Windows release çıktısı runner\Release altında oluşur.
 
-#define MyAppName "NexPOS"
+#define MyAppName "Okeyra Oyun Salonu"
 #define MyAppVersion "2.0.0"
-#define MyAppPublisher "NexPOS"
+#define MyAppPublisher "Okeyra Oyun Salonu"
 #define MyAppExeName "NEXPOS.exe"
 #define BuildSourceDir "frontend\\build\\windows\\x64\\runner\\Release"
 

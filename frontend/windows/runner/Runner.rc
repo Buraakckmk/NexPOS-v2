@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "NEXPOS" "\0"
+            VALUE "CompanyName", "Okeyra Oyun Salonu" "\0"
+            VALUE "FileDescription", "Okeyra Oyun Salonu - POS Yazılımı" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "NEXPOS" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Okeyra Oyun Salonu. All rights reserved." "\0"
             VALUE "OriginalFilename", "NEXPOS.exe" "\0"
-            VALUE "ProductName", "NEXPOS" "\0"
+            VALUE "ProductName", "Okeyra Oyun Salonu" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

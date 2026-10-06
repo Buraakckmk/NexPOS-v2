@@ -1,6 +1,5 @@
 const orderService = require("../services/order.service");
 const printerService = require("../services/printer.service");
-const customerService = require("../services/customer.service");
 const db = require("../config/db");
 const logger = require("../config/logger");
 
@@ -311,15 +310,15 @@ async function checkoutOrder(req, res, next) {
       return res.status(400).json({ message: "Gecersiz orderId." });
     }
 
-    if (!["CASH", "CARD", "MEAL_CARD", "CUSTOMER"].includes(paymentMethod)) {
-      return res.status(400).json({ message: "paymentMethod CASH, CARD, MEAL_CARD veya CUSTOMER olmalı." });
+    if (!["CASH", "CARD"].includes(paymentMethod)) {
+      return res.status(400).json({ message: "paymentMethod CASH veya CARD olmalı." });
     }
 
     if (!Number.isFinite(discountAmount) || discountAmount < 0) {
       return res.status(400).json({ message: "discountAmount 0 veya pozitif olmalı." });
     }
 
-    const mealCardType = req.body?.mealCardType?.toString().trim() || null;
+    const mealCardType = null;
     const result = await orderService.checkoutOrder({
       orderId,
       userId: req.user.user_id,
@@ -444,7 +443,7 @@ async function partialCheckout(req, res, next) {
     const { items, payments } = req.body;
     const paymentMethod = (req.body?.paymentMethod ?? "").toString().toUpperCase();
     const discountAmount = Number(req.body?.discountAmount ?? 0);
-    const fallbackMealCardType = req.body?.mealCardType?.toString().trim() || null;
+    const fallbackMealCardType = null;
     if (!Number.isFinite(orderId) || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "Gecersiz istek." });
     }
@@ -453,8 +452,8 @@ async function partialCheckout(req, res, next) {
       return res.status(400).json({ message: "payments bir dizi olmalı." });
     }
 
-    if (!payments && !["CASH", "CARD", "MEAL_CARD", "CUSTOMER"].includes(paymentMethod)) {
-      return res.status(400).json({ message: "paymentMethod CASH, CARD, MEAL_CARD veya CUSTOMER olmalı." });
+    if (!payments && !["CASH", "CARD"].includes(paymentMethod)) {
+      return res.status(400).json({ message: "paymentMethod CASH veya CARD olmalı." });
     }
 
     if (!Number.isFinite(discountAmount) || discountAmount < 0) {
@@ -625,11 +624,30 @@ async function partialCheckout(req, res, next) {
       }
 
       if (payments && payments.length > 0) {
+        const paymentTotal = payments.reduce((sum, payment) => {
+          const amount = Number(payment?.amount);
+          if (!Number.isFinite(amount) || amount <= 0) {
+            throw buildHttpError("Tahsilat tutarı geçersiz.", 400);
+          }
+          const method = String(payment?.paymentMethod || "").toUpperCase();
+          if (!["CASH", "CARD"].includes(method)) {
+            throw buildHttpError("Ödeme yöntemi CASH veya CARD olmalı.", 400);
+          }
+          return sum + amount;
+        }, 0);
+
+        if (Math.abs(paymentTotal - netPaidAmount) > 0.01) {
+          throw buildHttpError(
+            "Tahsilat toplamı seçilen ürünlerin indirimli tutarıyla eşleşmiyor.",
+            400
+          );
+        }
+
         for (let i = 0; i < payments.length; i++) {
           const p = payments[i];
           const pAmount = Number(p.amount);
           const pMethod = (p.paymentMethod || "CASH").toUpperCase();
-          const pMealCardType = p.mealCardType ? String(p.mealCardType).trim() : null;
+          const pMealCardType = null;
           const pDiscount = i === 0 ? appliedDiscount : 0; // İndirimi ilk ödemeye ekle
 
           await client.query(
@@ -648,23 +666,6 @@ async function partialCheckout(req, res, next) {
             `,
             [orderId, req.user.user_id, pMethod, pAmount, pDiscount, pMealCardType]
           );
-
-          if (pMethod === "CUSTOMER" || (pMealCardType && pMealCardType.startsWith("CUSTOMER:"))) {
-            let custId = p.customerId || p.customer_id;
-            if (!custId && pMealCardType && pMealCardType.startsWith("CUSTOMER:")) {
-              custId = Number(pMealCardType.split(":")[1]);
-            }
-            if (custId && Number.isFinite(custId)) {
-              await customerService.addTransaction({
-                customer_id: custId,
-                order_id: orderId,
-                type: "DEBIT",
-                amount: pAmount,
-                note: `Masa Adisyonu Cariye Aktarıldı (#${orderId})`,
-                created_by_user_id: req.user.user_id,
-              });
-            }
-          }
         }
       } else {
         await client.query(
@@ -683,23 +684,6 @@ async function partialCheckout(req, res, next) {
           `,
           [orderId, req.user.user_id, paymentMethod, netPaidAmount, appliedDiscount, fallbackMealCardType]
         );
-
-        if (paymentMethod === "CUSTOMER" || (fallbackMealCardType && fallbackMealCardType.startsWith("CUSTOMER:"))) {
-          let custId = req.body.customerId || req.body.customer_id;
-          if (!custId && fallbackMealCardType && fallbackMealCardType.startsWith("CUSTOMER:")) {
-            custId = Number(fallbackMealCardType.split(":")[1]);
-          }
-          if (custId && Number.isFinite(custId)) {
-            await customerService.addTransaction({
-              customer_id: custId,
-              order_id: orderId,
-              type: "DEBIT",
-              amount: netPaidAmount,
-              note: `Masa Adisyonu Cariye Aktarıldı (#${orderId})`,
-              created_by_user_id: req.user.user_id,
-            });
-          }
-        }
       }
 
       // Fişi yazdır (Kısmi ödeme için)
@@ -1318,8 +1302,8 @@ async function amountPayment(req, res, next) {
       return res.status(400).json({ message: "finalTotal gecersiz." });
     }
 
-    if (!["CASH", "CARD", "MEAL_CARD"].includes(paymentMethod)) {
-      return res.status(400).json({ message: "paymentMethod CASH, CARD veya MEAL_CARD olmalı." });
+    if (!["CASH", "CARD"].includes(paymentMethod)) {
+      return res.status(400).json({ message: "paymentMethod CASH veya CARD olmalı." });
     }
 
     await orderService.startPaymentSession({
@@ -1426,7 +1410,7 @@ async function amountPayment(req, res, next) {
       });
     }
 
-    const mealCardType = req.body?.mealCardType?.toString().trim() || null;
+    const mealCardType = null;
     const netAmount = Number(amount.toFixed(2));
     let tableClosed = false;
 

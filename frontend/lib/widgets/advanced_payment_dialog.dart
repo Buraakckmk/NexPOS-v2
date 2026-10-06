@@ -1,6 +1,5 @@
 import "package:flutter/material.dart";
 import "../models/payment_models.dart";
-import "../services/customer_service.dart";
 
 class AdvancedPaymentDialog extends StatefulWidget {
   final String tableName;
@@ -29,10 +28,12 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
   final List<CollectedPayment> alinanOdemeler = [];
   final List<TableOrderPreviewItem> selectedItemsForPayment = [];
   final List<TableOrderPreviewItem> allPaidItemsInThisSession = [];
+  final List<List<TableOrderPreviewItem>> _itemsPerPayment = [];
+  final List<double> _discountPerPayment = [];
   final Map<int, double> paidQuantities =
       {}; // productId -> already paid quantity
+  double _discountAppliedSoFar = 0;
   String? validationMessage;
-  bool _userHasEditedAmount = false;
 
   @override
   void initState() {
@@ -43,7 +44,7 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
     discountController = TextEditingController(
       text: initialDiscount > 0 ? initialDiscount.toStringAsFixed(2) : "",
     );
-    // Başlangıçta 0.00 gösterelim ki kullanıcı ürün seçmeye zorlansın veya manuel tutar girsin
+    // Tahsilat tutarı ürün seçimiyle hesaplanır.
     paymentAmountController = TextEditingController(text: "0.00");
   }
 
@@ -76,21 +77,92 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
         0.0,
         (sum, si) => sum + si.lineTotal,
       );
-      // Ürün seçiliyse, indirim genel toplamdan değil, seçili ürünlerin toplamından düşer (opsiyonel mantık)
-      // Ancak genellikle indirim tüm masaya yapılır. Burada seçili ürünlerin toplamını gösterelim.
-      // Eğer kullanıcı ürün seçip bir de indirim girerse, seçili ürün toplamından bu indirimi düşelim.
-      final finalSelectedAmount = roundMoney(selectedTotal - discountAmount);
+      final remainingDiscount = (discountAmount - _discountAppliedSoFar)
+          .clamp(0.0, discountAmount)
+          .toDouble();
+      final discountForSelection = selectedTotal < remainingDiscount
+          ? selectedTotal
+          : remainingDiscount;
+      final finalSelectedAmount = roundMoney(
+        selectedTotal - discountForSelection,
+      );
       paymentAmountController.text =
           (finalSelectedAmount > 0 ? finalSelectedAmount : 0).toStringAsFixed(
             2,
           );
-      _userHasEditedAmount =
-          false; // Seçim yapıldığında manuel düzenleme sıfırlanır
     } else {
       // Hiçbir ürün seçili değilse 0.00 göster (Alman usulü için en doğrusu)
       paymentAmountController.text = "0.00";
-      _userHasEditedAmount = false;
     }
+  }
+
+  void _removePaymentAt(int index) {
+    final itemsToRestore = _itemsPerPayment.removeAt(index);
+    _discountAppliedSoFar = (_discountAppliedSoFar -
+            _discountPerPayment.removeAt(index))
+        .clamp(0.0, double.infinity)
+        .toDouble();
+    alinanOdemeler.removeAt(index);
+
+    for (final item in itemsToRestore) {
+      final restoredQuantity =
+          (paidQuantities[item.productId] ?? 0) - item.quantity;
+      if (restoredQuantity <= 0.009) {
+        paidQuantities.remove(item.productId);
+      } else {
+        paidQuantities[item.productId] = restoredQuantity;
+      }
+      allPaidItemsInThisSession.remove(item);
+      final selectedIndex = selectedItemsForPayment.indexWhere(
+        (selected) => selected.productId == item.productId,
+      );
+      if (selectedIndex < 0) {
+        selectedItemsForPayment.add(item);
+      } else {
+        final existing = selectedItemsForPayment[selectedIndex];
+        final quantity = existing.quantity + item.quantity;
+        selectedItemsForPayment[selectedIndex] = existing.copyWith(
+          quantity: quantity,
+          lineTotal: quantity * existing.unitPrice,
+        );
+      }
+    }
+
+    _updateAmountFromSelection();
+  }
+
+  void _recordPayment(String paymentMethod, double amount) {
+    final selectedItems = List<TableOrderPreviewItem>.from(
+      selectedItemsForPayment,
+    );
+    final selectedTotal = selectedItems.fold<double>(
+      0,
+      (sum, item) => sum + item.lineTotal,
+    );
+    final appliedDiscount = roundMoney(
+      (selectedTotal - amount).clamp(0.0, selectedTotal).toDouble(),
+    );
+
+    setState(() {
+      alinanOdemeler.add(
+        CollectedPayment(
+          paymentMethod: paymentMethod,
+          amount: roundMoney(amount),
+        ),
+      );
+      _itemsPerPayment.add(selectedItems);
+      _discountPerPayment.add(appliedDiscount);
+      _discountAppliedSoFar += appliedDiscount;
+
+      for (final item in selectedItems) {
+        paidQuantities[item.productId] =
+            (paidQuantities[item.productId] ?? 0) + item.quantity;
+        allPaidItemsInThisSession.add(item);
+      }
+      selectedItemsForPayment.clear();
+      _updateAmountFromSelection();
+      validationMessage = null;
+    });
   }
 
   List<TableOrderPreviewItem> _remainingItemsForSelection() {
@@ -194,6 +266,10 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
               child: const Text("Vazgeç"),
             ),
             TextButton(
+              onPressed: () => Navigator.pop(ctx, maxQty),
+              child: const Text("Tümünü Seç"),
+            ),
+            TextButton(
               onPressed: () => Navigator.pop(ctx, selectedQty),
               child: const Text("Seç"),
             ),
@@ -201,156 +277,6 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
         ),
       ),
     );
-  }
-
-  Future<void> _showMealCardPicker() async {
-    const mealCards = [
-      "Eden Red",
-      "Multinet",
-      "Tokenflex",
-      "Sodexo",
-      "Setcard",
-      "Metropol",
-      "Paycell",
-    ];
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Yemek Kartı Seç"),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: mealCards
-                .map(
-                  (card) => ListTile(
-                    title: Text(card),
-                    onTap: () => Navigator.pop(ctx, card),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Vazgeç"),
-          ),
-        ],
-      ),
-    );
-
-    if (selected != null && mounted) {
-      final amount =
-          double.tryParse(
-            paymentAmountController.text.trim().replaceAll(",", "."),
-          ) ??
-          0;
-      if (amount <= 0) {
-        setState(() {
-          validationMessage = "Geçerli bir tutar girin.";
-        });
-        return;
-      }
-      if (amount >
-          (widget.totalAmount - widget.initialCollectedAmount) + 0.009) {
-        setState(() {
-          validationMessage = "Tutar kalandan büyük olamaz.";
-        });
-        return;
-      }
-      setState(() {
-        alinanOdemeler.add(
-          CollectedPayment(
-            paymentMethod: "MEAL_CARD",
-            amount: roundMoney(amount),
-            mealCardType: selected,
-          ),
-        );
-        for (var si in selectedItemsForPayment) {
-          paidQuantities[si.productId] =
-              (paidQuantities[si.productId] ?? 0) + si.quantity;
-          allPaidItemsInThisSession.add(si);
-        }
-        selectedItemsForPayment.clear();
-        _updateAmountFromSelection();
-        validationMessage = null;
-      });
-    }
-  }
-
-  Future<void> _showCustomerPicker() async {
-    try {
-      final customers = await CustomerService().listCustomers();
-      if (!mounted) return;
-
-      if (customers.isEmpty) {
-        setState(() {
-          validationMessage = "Kayıtlı cari müşteri bulunamadı. Önce Yönetici Paneli -> Cari Hesaplar ekranından müşteri ekleyin.";
-        });
-        return;
-      }
-
-      final selected = await showDialog<Map<String, dynamic>>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text("Cari Hesabına Aktar (Müşteri Seç)"),
-          content: SizedBox(
-            width: 350,
-            height: 300,
-            child: ListView.builder(
-              itemCount: customers.length,
-              itemBuilder: (context, index) {
-                final c = customers[index];
-                return ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.person)),
-                  title: Text(c['full_name'] ?? ''),
-                  subtitle: Text(c['phone'] ?? 'Telefon yok'),
-                  onTap: () => Navigator.pop(ctx, c),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Vazgeç"),
-            ),
-          ],
-        ),
-      );
-
-      if (selected != null && mounted) {
-        final amount = double.tryParse(paymentAmountController.text.trim().replaceAll(",", ".")) ?? 0;
-        if (amount <= 0) {
-          setState(() {
-            validationMessage = "Geçerli bir tutar girin.";
-          });
-          return;
-        }
-        setState(() {
-          alinanOdemeler.add(
-            CollectedPayment(
-              paymentMethod: "CUSTOMER",
-              amount: roundMoney(amount),
-              mealCardType: "CUSTOMER:${selected['id']}:${selected['full_name']}",
-            ),
-          );
-          for (var si in selectedItemsForPayment) {
-            paidQuantities[si.productId] = (paidQuantities[si.productId] ?? 0) + si.quantity;
-            allPaidItemsInThisSession.add(si);
-          }
-          selectedItemsForPayment.clear();
-          _updateAmountFromSelection();
-          validationMessage = null;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          validationMessage = "Müşteriler alınamadı: $e";
-        });
-      }
-    }
   }
 
   @override
@@ -378,14 +304,6 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
     final kalanTutar = roundMoney(
       payableAmount - oncekiTahsilat - alinanToplam,
     );
-    final typedAmount = roundMoney(
-      double.tryParse(
-            paymentAmountController.text.trim().replaceAll(",", "."),
-          ) ??
-          0,
-    );
-    final kalanAfterTyped = roundMoney(kalanTutar - typedAmount);
-    final showTypedPreview = _userHasEditedAmount && typedAmount > 0.009;
     final isOverPaid = kalanTutar < -0.009;
     final isZeroBalance = kalanTutar.abs() <= 0.009;
     final isFullyCollected =
@@ -399,8 +317,7 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
     final hasDiscountChanged = (discountAmount - initialDiscount).abs() > 0.009;
 
     if (paymentAmountController.text.trim().isEmpty) {
-      paymentAmountController.text = (kalanTutar > 0 ? kalanTutar : 0)
-          .toStringAsFixed(2);
+      paymentAmountController.text = "0.00";
     }
 
     return Dialog(
@@ -679,8 +596,6 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                               leading: Icon(
                                 payment.paymentMethod == 'CASH'
                                     ? Icons.payments_rounded
-                                    : payment.paymentMethod == 'MEAL_CARD'
-                                    ? Icons.restaurant_menu_rounded
                                     : Icons.credit_card_rounded,
                                 size: 18,
                                 color: const Color(0xFF10B981),
@@ -688,8 +603,6 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                               title: Text(
                                 payment.paymentMethod == 'CASH'
                                     ? 'Nakit Ödeme'
-                                    : payment.paymentMethod == 'MEAL_CARD'
-                                    ? payment.mealCardType ?? "Yemek Kartı"
                                     : 'Kredi Kartı',
                                 style: const TextStyle(
                                   color: Color(0xFF0F172A),
@@ -716,10 +629,7 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                                       size: 18,
                                     ),
                                     onPressed: () {
-                                      setState(() {
-                                        alinanOdemeler.removeAt(index);
-                                        _updateAmountFromSelection();
-                                      });
+                                      setState(() => _removePaymentAt(index));
                                     },
                                   ),
                                 ],
@@ -759,9 +669,7 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              showTypedPreview
-                                  ? "KALAN (YAZILAN SONRASI)"
-                                  : "ÖDENECEK KALAN",
+                              "ÖDENECEK KALAN",
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Color(0xFF71717A),
@@ -772,14 +680,10 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              "${(showTypedPreview ? kalanAfterTyped : kalanTutar).toStringAsFixed(2)} TL",
+                              "${kalanTutar.toStringAsFixed(2)} TL",
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color:
-                                    (showTypedPreview
-                                            ? kalanAfterTyped
-                                            : kalanTutar) <
-                                        -0.009
+                                color: kalanTutar < -0.009
                                     ? const Color(0xFFEF4444)
                                     : const Color(0xFF10B981),
                                 fontSize: 34,
@@ -794,6 +698,7 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                                   child: _buildDialogToggle(
                                     label: "Tutar İndirimi",
                                     selected: discountType == "AMOUNT",
+                                    enabled: alinanOdemeler.isEmpty,
                                     onTap: () {
                                       setState(() {
                                         discountType = "AMOUNT";
@@ -807,6 +712,7 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                                   child: _buildDialogToggle(
                                     label: "Yüzde İndirimi",
                                     selected: discountType == "PERCENT",
+                                    enabled: alinanOdemeler.isEmpty,
                                     onTap: () {
                                       setState(() {
                                         discountType = "PERCENT";
@@ -820,6 +726,7 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                             const SizedBox(height: 12),
                             TextField(
                               controller: discountController,
+                              readOnly: alinanOdemeler.isNotEmpty,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
@@ -893,14 +800,9 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                                     ),
                                   ),
                                   _buildSummaryRow(
-                                    showTypedPreview
-                                        ? "Kalan (Yazılan Sonrası)"
-                                        : "Kalan Tutar",
-                                    "${(showTypedPreview ? kalanAfterTyped : kalanTutar).toStringAsFixed(2)} TL",
-                                    (showTypedPreview
-                                                ? kalanAfterTyped
-                                                : kalanTutar) <
-                                            -0.009
+                                    "Kalan Tutar",
+                                    "${kalanTutar.toStringAsFixed(2)} TL",
+                                    kalanTutar < -0.009
                                         ? const Color(0xFFEF4444)
                                         : const Color(0xFFF59E0B),
                                     isLarge: true,
@@ -909,64 +811,31 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                               ),
                             ),
                             const SizedBox(height: 24),
-                            TextField(
-                              controller: paymentAmountController,
-                              readOnly: selectedItemsForPayment.isNotEmpty,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              onChanged: (_) => setState(() {
-                                _userHasEditedAmount = true;
-                              }),
-                              style: TextStyle(
-                                color: selectedItemsForPayment.isNotEmpty
-                                    ? const Color(0xFF10B981)
-                                    : const Color(0xFF0F172A),
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: const Color(0xFF3B82F6), width: 1.5),
                               ),
-                              textAlign: TextAlign.center,
-                              decoration: InputDecoration(
-                                labelText: selectedItemsForPayment.isNotEmpty
-                                    ? "Seçili Ürünlerin Toplamı"
-                                    : "Tahsil Edilecek Tutar",
-                                labelStyle: const TextStyle(
-                                  color: Color(0xFF71717A),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
+                              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                const Text(
+                                  "Seçilen Ürünlerin Tutarı",
+                                  style: TextStyle(color: Color(0xFF059669), fontSize: 14, fontWeight: FontWeight.w700),
                                 ),
-                                floatingLabelAlignment:
-                                    FloatingLabelAlignment.center,
-                                filled: true,
-                                fillColor: selectedItemsForPayment.isNotEmpty
-                                    ? const Color(0xFFF0FDF4)
-                                    : const Color(0xFFFFFFFF),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFFE2E8F0),
-                                  ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "${paymentAmountController.text} TL",
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Color(0xFF0F172A), fontSize: 28, fontWeight: FontWeight.w900),
                                 ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                  borderSide: const BorderSide(
-                                    color: Color(0xFFE2E8F0),
-                                  ),
+                                const Text(
+                                  "Tutar, soldan seçtiğiniz ürün ve adetlere göre hesaplanır.",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
                                 ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                  borderSide: BorderSide(
-                                    color: selectedItemsForPayment.isNotEmpty
-                                        ? const Color(0xFF10B981)
-                                        : const Color(0xFF3B82F6),
-                                    width: 2,
-                                  ),
-                                ),
-                                helperText: selectedItemsForPayment.isNotEmpty
-                                    ? "Ürün seçiliyken tutar düzenlenemez."
-                                    : "Ödenecek tutarı manuel girebilirsiniz.",
-                              ),
+                              ]),
                             ),
                             const SizedBox(height: 16),
                             Wrap(
@@ -986,6 +855,13 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                                                 .replaceAll(",", "."),
                                           ) ??
                                           0;
+                                      if (selectedItemsForPayment.isEmpty) {
+                                        setState(() {
+                                          validationMessage =
+                                              "Tahsilat için soldan ürün seçin.";
+                                        });
+                                        return;
+                                      }
                                       if (amount <= 0) {
                                         setState(() {
                                           validationMessage =
@@ -1000,26 +876,7 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                                         });
                                         return;
                                       }
-                                      setState(() {
-                                        alinanOdemeler.add(
-                                          CollectedPayment(
-                                            paymentMethod: "CASH",
-                                            amount: roundMoney(amount),
-                                          ),
-                                        );
-
-                                        for (var si
-                                            in selectedItemsForPayment) {
-                                          paidQuantities[si.productId] =
-                                              (paidQuantities[si.productId] ??
-                                                  0) +
-                                              si.quantity;
-                                          allPaidItemsInThisSession.add(si);
-                                        }
-                                        selectedItemsForPayment.clear();
-                                        _updateAmountFromSelection();
-                                        validationMessage = null;
-                                      });
+                                      _recordPayment("CASH", amount);
                                     },
                                   ),
                                 ),
@@ -1036,6 +893,13 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                                                 .replaceAll(",", "."),
                                           ) ??
                                           0;
+                                      if (selectedItemsForPayment.isEmpty) {
+                                        setState(() {
+                                          validationMessage =
+                                              "Tahsilat için soldan ürün seçin.";
+                                        });
+                                        return;
+                                      }
                                       if (amount <= 0) {
                                         setState(() {
                                           validationMessage =
@@ -1050,43 +914,8 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                                         });
                                         return;
                                       }
-                                      setState(() {
-                                        alinanOdemeler.add(
-                                          CollectedPayment(
-                                            paymentMethod: "CARD",
-                                            amount: roundMoney(amount),
-                                          ),
-                                        );
-
-                                        for (var si
-                                            in selectedItemsForPayment) {
-                                          paidQuantities[si.productId] =
-                                              (paidQuantities[si.productId] ??
-                                                  0) +
-                                              si.quantity;
-                                          allPaidItemsInThisSession.add(si);
-                                        }
-                                        selectedItemsForPayment.clear();
-                                        _updateAmountFromSelection();
-                                        validationMessage = null;
-                                      });
+                                      _recordPayment("CARD", amount);
                                     },
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 140,
-                                  child: _buildDialogPaymentOption(
-                                    label: "🍽️ YEMEK KARTI",
-                                    selected: false,
-                                    onTap: _showMealCardPicker,
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 140,
-                                  child: _buildDialogPaymentOption(
-                                    label: "💼 CARİYE AKTAR",
-                                    selected: false,
-                                    onTap: _showCustomerPicker,
                                   ),
                                 ),
                               ],
@@ -1238,25 +1067,38 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
   Widget _buildDialogToggle({
     required String label,
     required bool selected,
+    bool enabled = true,
     required VoidCallback onTap,
   }) {
     return InkWell(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF10B981) : const Color(0xFFFFFFFF),
+          color: !enabled
+              ? const Color(0xFFF1F5F9)
+              : selected
+              ? const Color(0xFF10B981)
+              : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+            color: !enabled
+                ? const Color(0xFFCBD5E1)
+                : selected
+                ? const Color(0xFF10B981)
+                : const Color(0xFFE2E8F0),
           ),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: selected ? Colors.white : const Color(0xFF0F172A),
+            color: !enabled
+                ? const Color(0xFF94A3B8)
+                : selected
+                ? Colors.white
+                : const Color(0xFF0F172A),
             fontSize: 12,
             fontWeight: FontWeight.w800,
           ),

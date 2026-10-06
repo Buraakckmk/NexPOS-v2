@@ -505,7 +505,7 @@ class _HeroPanelState extends State<_HeroPanel>
     {
       "icon": Icons.auto_graph_rounded,
       "title": "Node #3: Ciro & Z-Raporu",
-      "desc": "Günlük canlı ciro analitiği, detaylı gider takibi ve müşteri bakiyeleri.",
+      "desc": "Günlük canlı ciro analitiği ve detaylı gider takibi.",
       "color": Color(0xFFA855F7),
       "badge": "Analitik",
     },
@@ -947,13 +947,11 @@ class _HeroWeb3GlassShowcase extends StatelessWidget {
 
 class _FeaturePill extends StatelessWidget {
   final IconData icon;
-  final double? iconSize;
   final String label;
   final Color color;
 
   const _FeaturePill({
     required this.icon,
-    this.iconSize,
     required this.label,
     required this.color,
   });
@@ -977,7 +975,7 @@ class _FeaturePill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: iconSize ?? 14, color: color),
+          Icon(icon, size: 14, color: color),
           const SizedBox(width: 8),
           Text(
             label,
@@ -1087,6 +1085,4 @@ class _Web3DNACosmicPainter extends CustomPainter {
   @override
   bool shouldRepaint(_Web3DNACosmicPainter old) => old.progress != progress;
 }
-
-
 

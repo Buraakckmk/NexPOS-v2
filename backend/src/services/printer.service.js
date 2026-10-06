@@ -14,8 +14,8 @@ const PRINTER_TYPES = {
   KITCHEN: "MUTFAK",
 };
 
-const DEPARTMENT_ROUTES = [PRINTER_TYPES.MUTFAK, PRINTER_TYPES.BAR, PRINTER_TYPES.KASA];
-const BRAND_NAME = (process.env.CAFE_NAME || "KAHVE DERYASI").toUpperCase();
+const PRINTER_ROUTES = [PRINTER_TYPES.KASA];
+const BRAND_NAME = "OKEYRA OYUN SALONU";
 const PRINTER_CHARSET =
   process.env.PRINTER_CHARSET || CharacterSet.PC857_TURKISH;
 
@@ -121,24 +121,9 @@ function normalizePrinterType(value) {
 }
 
 function resolvePrinterIp(printerType) {
-  const envByRoute = process.env[`PRINTER_IP_${printerType}`];
-  if (envByRoute) {
-    return envByRoute;
-  }
-
-  if (printerType === PRINTER_TYPES.KASA) {
-    return process.env.KASA_PRINTER_IP || null;
-  }
-
-  if (printerType === PRINTER_TYPES.MUTFAK) {
-    return process.env.MUTFAK_PRINTER_IP || null;
-  }
-
-  if (printerType === PRINTER_TYPES.BAR) {
-    return process.env.BAR_PRINTER_IP || null;
-  }
-
-  return null;
+  // The installation uses a single printer. Keep its address unset until provided.
+  if (printerType !== PRINTER_TYPES.KASA) return null;
+  return process.env.KASA_PRINTER_IP || process.env.PRINTER_IP_KASA || null;
 }
 
 function resolvePrinterPort(printerType) {
@@ -542,7 +527,6 @@ function buildCashReceiptText({
   vatAmount,
   grandTotal,
   paymentMethod,
-  mealCardType,
 }) {
   const lines = [
     `MASA: ${String(tableDisplayName ?? "-").toUpperCase()}`,
@@ -557,9 +541,7 @@ function buildCashReceiptText({
     lines.push(`${qty}x ${name}`);
   }
 
-  const paymentLine = mealCardType
-    ? `ODEME: ${String(paymentMethod || "-").toUpperCase()} - ${mealCardType.toUpperCase()}`
-    : `ODEME: ${String(paymentMethod || "-").toUpperCase()}`;
+  const paymentLine = `ODEME: ${String(paymentMethod || "-").toUpperCase()}`;
 
   lines.push(
     "",
@@ -621,7 +603,7 @@ function buildZReportText({
 
   const lines = [
     "*** Z RAPORU ***",
-    `Kafe: ${cafeName.toUpperCase()} / ${branch.toUpperCase()}`,
+    `Isletme: ${cafeName.toUpperCase()} / ${branch.toUpperCase()}`,
     `Tarih: ${dateStr} ${timeStr}`,
     "--------------------------------",
     "ISLEMLER VE TUTARLAR:",
@@ -668,7 +650,7 @@ function buildXReportText({
 
   const lines = [
     "*** X RAPORU ***",
-    `Kafe: ${cafeName.toUpperCase()} / ${branch.toUpperCase()}`,
+    `Isletme: ${cafeName.toUpperCase()} / ${branch.toUpperCase()}`,
     `Tarih: ${dateStr} ${timeStr}`,
     "--------------------------------",
     "İŞLEMLER VE TUTARLAR:",
@@ -721,32 +703,29 @@ async function enqueueOrderDepartmentTickets({
   items,
   confirmedAt,
 }) {
-  const grouped = splitItemsByPrinter(items);
-  await Promise.all(
-    Object.entries(grouped).map(([printerType, printerItems]) => {
-      const title = `${printerType} FISI`;
-      return enqueuePrintJob({
-        printerType,
-        ticketType: "ORDER_CONFIRMATION",
-        payload: {
-          tableDisplayName,
-          waiterName,
-          orderId,
-          guestCount: guestCount || 0,
-          items: printerItems,
-          confirmedAt,
-          text: buildKitchenText({
-            title,
-            tableDisplayName,
-            waiterName,
-            orderId,
-            items: printerItems,
-            confirmedAt,
-          }),
-        },
-      });
-    })
-  );
+  const printerType = PRINTER_TYPES.KASA;
+  const printerItems = Array.isArray(items) ? items : [];
+  const title = "KASA SIPARIS FISI";
+  await enqueuePrintJob({
+    printerType,
+    ticketType: "ORDER_CONFIRMATION",
+    payload: {
+      tableDisplayName,
+      waiterName,
+      orderId,
+      guestCount: guestCount || 0,
+      items: printerItems,
+      confirmedAt,
+      text: buildKitchenText({
+        title,
+        tableDisplayName,
+        waiterName,
+        orderId,
+        items: printerItems,
+        confirmedAt,
+      }),
+    },
+  });
 }
 
 async function enqueueCashReceipt(payload) {
@@ -772,15 +751,8 @@ async function enqueueCurrentAccountReceipt(payload) {
 }
 
 async function enqueueItemCancelledReceipt(payload) {
-  const firstItem = Array.isArray(payload?.items) && payload.items.length
-    ? payload.items[0]
-    : null;
-  const printerType =
-    normalizePrinterType(firstItem?.printer_route || firstItem?.printerRoute) ||
-    resolveDepartmentPrinter(firstItem?.category_name || firstItem?.categoryName);
-
   await enqueuePrintJob({
-    printerType,
+    printerType: PRINTER_TYPES.KASA,
     ticketType: "ITEM_CANCELLED",
     payload,
   });
@@ -827,7 +799,7 @@ async function printKitchenReceipt({
 }
 
 function getPrinterSnapshot() {
-  return DEPARTMENT_ROUTES.map((printerType) => ({
+  return PRINTER_ROUTES.map((printerType) => ({
     printerType,
     target: getPrinterTarget(printerType),
   }));

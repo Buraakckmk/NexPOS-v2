@@ -27,7 +27,9 @@ class TableOrderPreviewItem {
       name: (json["name"] ?? "").toString(),
       quantity: qty,
       lineTotal: total,
-      unitPrice: unitPriceFromJson > 0 ? unitPriceFromJson : (qty > 0 ? total / qty : 0),
+      unitPrice: unitPriceFromJson > 0
+          ? unitPriceFromJson
+          : (qty > 0 ? total / qty : 0),
     );
   }
 
@@ -45,13 +47,8 @@ class TableOrderPreviewItem {
 class CollectedPayment {
   final String paymentMethod;
   final double amount;
-  final String? mealCardType;
 
-  const CollectedPayment({
-    required this.paymentMethod,
-    required this.amount,
-    this.mealCardType,
-  });
+  const CollectedPayment({required this.paymentMethod, required this.amount});
 }
 
 class CheckoutDialogResult {
@@ -126,7 +123,8 @@ class XReportData {
       averageGuestCount: json["averageGuestCount"]?.toString() ?? "0.0",
       averageDuration: _toInt(json["averageDuration"]),
       totalExpenses: _toDouble(json["totalExpenses"]),
-      expenses: (json["expenses"] as List?)
+      expenses:
+          (json["expenses"] as List?)
               ?.map((e) => ExpenseDetail.fromJson(e))
               .toList() ??
           [],

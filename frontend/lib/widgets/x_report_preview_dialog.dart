@@ -137,7 +137,7 @@ class _XReportPreviewDialogState extends State<XReportPreviewDialog> {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        "Kafe: KAHVE DERYASI / MERKEZ",
+                        "İşletme: OKEYRA OYUN SALONU / MERKEZ",
                         style: TextStyle(fontSize: 11, color: Color(0xFF475569)),
                       ),
                       Text(

@@ -1,6 +1,5 @@
 import "package:flutter/material.dart";
 import "package:fl_chart/fl_chart.dart";
-import "package:provider/provider.dart";
 
 import "../services/api_client.dart";
 import "../services/socket_service.dart";
@@ -9,13 +8,10 @@ import "../theme/app_theme.dart";
 import "../widgets/x_report_preview_dialog.dart";
 import "../models/payment_models.dart";
 import "../models/dashboard_models.dart";
-import "../providers/auth_provider.dart";
-import "login_screen.dart";
 import "admin_menu_management_screen.dart";
 import "waiter_tables_screen.dart";
 import "admin_transactions_screen.dart";
 import "admin_expenses_screen.dart";
-import "admin_customers_screen.dart";
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -91,7 +87,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
-  Future<void> _logout() async {
+  Future<void> _returnToTables() async {
     final approved = await showDialog<bool>(
       context: context,
       builder: (ctx) => Theme(
@@ -104,11 +100,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         child: AlertDialog(
           backgroundColor: Colors.white,
           title: const Text(
-            "Çıkış Yap",
-            style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold),
+            "Masa Ekranına Dön",
+            style: TextStyle(
+              color: Color(0xFF0F172A),
+              fontWeight: FontWeight.bold,
+            ),
           ),
           content: const Text(
-            "Yönetici panelinden çıkış yapmak istiyor musunuz?",
+            "Yönetici panelinden çıkıp masa ekranına dönmek istiyor musunuz?",
             style: TextStyle(color: Color(0xFF334155)),
           ),
           actions: [
@@ -122,7 +121,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 backgroundColor: const Color(0xFFEF4444),
                 foregroundColor: Colors.white,
               ),
-              child: const Text("Çıkış Yap"),
+              child: const Text("Masa Ekranına Dön"),
             ),
           ],
         ),
@@ -131,10 +130,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
     if (approved != true || !mounted) return;
 
-    await context.read<AuthProvider>().logout();
-    if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(builder: (_) => const WaiterTablesScreen()),
       (route) => false,
     );
   }
@@ -165,7 +162,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<List<Expense>> _fetchExpenses() async {
     try {
-      final response = await ApiClient.dio.get("/admin/expenses");
+      final response = await ApiClient.dio.get("/admin/expenses?currentPeriodOnly=true");
       final data = response.data as Map<String, dynamic>;
       final payload = data["data"];
       List<dynamic> list = [];
@@ -242,7 +239,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Text("Silme Şifresi", style: TextStyle(color: Color(0xFF0F172A))),
+        title: const Text(
+          "Silme Şifresi",
+          style: TextStyle(color: Color(0xFF0F172A)),
+        ),
         content: TextField(
           controller: pinController,
           autofocus: true,
@@ -346,7 +346,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF10B981),
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -377,14 +380,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF10B981),
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: priceController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   style: const TextStyle(
                     color: Color(0xFF0F172A),
                     fontWeight: FontWeight.w700,
@@ -408,7 +416,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF10B981),
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -438,7 +449,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF10B981),
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -463,7 +477,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               backgroundColor: const Color(0xFF0F172A),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () async {
               if (nameController.text.isEmpty || priceController.text.isEmpty) {
@@ -535,7 +551,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        title: const Text("Günü Kapat (Z Raporu)", style: TextStyle(color: Color(0xFF0F172A))),
+        title: const Text(
+          "Günü Kapat (Z Raporu)",
+          style: TextStyle(color: Color(0xFF0F172A)),
+        ),
         content: const Text(
           "Gün sonu raporu oluşturulacak ve sistem kapatılacak. Devam etmek istiyor musunuz?",
         ),
@@ -607,14 +626,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 child: Container(
                   decoration: const BoxDecoration(
                     color: Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
                   ),
                   child: FutureBuilder<List<dynamic>>(
                     future: _combinedFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(
-                          child: CircularProgressIndicator(color: Color(0xFF10B981)),
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF10B981),
+                          ),
                         );
                       }
 
@@ -625,7 +648,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       final summary = snapshot.data![0] as DailySummary;
                       final stats = snapshot.data![1] as AdminStats;
                       final expenses = snapshot.data![2] as List<Expense>;
-                      final transactions = snapshot.data![3] as List<PaymentTransaction>;
+                      final transactions =
+                          snapshot.data![3] as List<PaymentTransaction>;
                       final customTables = snapshot.data![4] as List<TableItem>;
 
                       final totalExpensesSum = expenses.fold<double>(
@@ -652,7 +676,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF1E293B).withValues(alpha: 0.05),
+                                      color: const Color(
+                                        0xFF1E293B,
+                                      ).withValues(alpha: 0.05),
                                       blurRadius: 10,
                                       offset: const Offset(0, 4),
                                     ),
@@ -696,7 +722,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                     // Sekme 1: Grafikler
                                     _buildChartsTab(stats),
                                     // Sekme 2: İşlem Hareketleri
-                                    _buildTransactionsTab(transactions, expenses),
+                                    _buildTransactionsTab(
+                                      transactions,
+                                      expenses,
+                                    ),
                                     // Sekme 3: Modüller & Özel Masalar
                                     _buildModulesTab(customTables),
                                   ],
@@ -779,23 +808,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           const Spacer(),
           // Hızlı Butonlar
           _buildHeaderPillButton(
-            icon: Icons.account_balance_wallet_rounded,
-            label: "Cari Hesaplar",
-            color: const Color(0xFF8B5CF6),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AdminCustomersScreen()),
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-          _buildHeaderPillButton(
             icon: Icons.inventory_2_rounded,
             label: "Ürün Yönetimi",
             color: const Color(0xFF0EA5E9),
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AdminMenuManagementScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const AdminMenuManagementScreen(),
+                ),
               );
             },
           ),
@@ -817,10 +837,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
           const SizedBox(width: 8),
           _buildHeaderPillButton(
-            icon: Icons.logout_rounded,
-            label: "Çıkış Yap",
-            color: const Color(0xFF475569),
-            onPressed: _logout,
+            icon: Icons.table_restaurant_rounded,
+            label: "Masa Ekranı",
+            color: const Color(0xFF0F766E),
+            onPressed: _returnToTables,
           ),
           const SizedBox(width: 8),
           IconButton(
@@ -846,7 +866,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ? const SizedBox(
               width: 14,
               height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
             )
           : Icon(icon, size: 16, color: Colors.white),
       label: Text(
@@ -886,16 +909,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             _buildGradientCard(
               title: "Günlük Ciro",
               value: "${summary.totalRevenue.toStringAsFixed(0)} ₺",
-              subText: "Nakit: ${summary.cashTotal.toStringAsFixed(0)}₺ • Kart: ${summary.cardTotal.toStringAsFixed(0)}₺",
+              subText:
+                  "Nakit: ${summary.cashTotal.toStringAsFixed(0)}₺ • Kart: ${summary.cardTotal.toStringAsFixed(0)}₺",
               icon: Icons.payments_rounded,
-              gradientColors: [const Color(0xFF059669), const Color(0xFF10B981)],
+              gradientColors: [
+                const Color(0xFF059669),
+                const Color(0xFF10B981),
+              ],
             ),
             _buildGradientCard(
               title: "Adisyon Sayısı",
               value: "${summary.totalOrders} Adet",
               subText: "Tamamlanan Masalar",
               icon: Icons.receipt_long_rounded,
-              gradientColors: [const Color(0xFF2563EB), const Color(0xFF3B82F6)],
+              gradientColors: [
+                const Color(0xFF2563EB),
+                const Color(0xFF3B82F6),
+              ],
             ),
             _buildGradientCard(
               title: "Net Kasa Durumu",
@@ -905,13 +935,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               gradientColors: netKasa >= 0
                   ? [const Color(0xFF0F766E), const Color(0xFF14B8A6)]
                   : [const Color(0xFFBE123C), const Color(0xFFF43F5E)],
-            ),
-            _buildGradientCard(
-              title: "Hızlı İşlemler",
-              value: "Cari & Kasa",
-              subText: "Müşteri Borç / Tahsilat",
-              icon: Icons.account_balance_wallet_rounded,
-              gradientColors: [const Color(0xFF6D28D9), const Color(0xFF8B5CF6)],
             ),
           ],
         );
@@ -1002,21 +1025,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           flex: 3,
           child: Column(
             children: [
-              Expanded(
-                child: _buildWeeklyRevenueChart(stats.weeklyRevenue),
-              ),
+              Expanded(child: _buildWeeklyRevenueChart(stats.weeklyRevenue)),
               const SizedBox(height: 16),
-              Expanded(
-                child: _buildTopProductsChart(stats.topProducts),
-              ),
+              Expanded(child: _buildTopProductsChart(stats.topProducts)),
             ],
           ),
         ),
         const SizedBox(width: 16),
-        Expanded(
-          flex: 2,
-          child: _buildCategorySalesChart(stats.categorySales),
-        ),
+        Expanded(flex: 2, child: _buildCategorySalesChart(stats.categorySales)),
       ],
     );
   }
@@ -1099,41 +1115,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: Color(0xFFF1F5F9),
-                    child: Icon(Icons.account_balance_wallet, color: Color(0xFF8B5CF6)),
-                  ),
-                  title: const Text(
-                    "Cari & Müşteri Hesabı Yönetimi",
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                  ),
-                  subtitle: const Text(
-                    "Müşteri veresiye bakiyelerini takip edin ve tahsilat girin",
-                    style: TextStyle(color: Color(0xFF64748B)),
-                  ),
-                  trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF0F172A)),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AdminCustomersScreen()),
-                    );
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFF1F5F9),
                     child: Icon(Icons.inventory_2, color: Color(0xFF0EA5E9)),
                   ),
                   title: const Text(
                     "Ürün & Menü Yönetimi",
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   subtitle: const Text(
                     "Kategori ekleyin, ürün fiyatlarını ve yazıcı rotalarını güncelleyin",
                     style: TextStyle(color: Color(0xFF64748B)),
                   ),
-                  trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF0F172A)),
+                  trailing: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF0F172A),
+                  ),
                   onTap: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AdminMenuManagementScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const AdminMenuManagementScreen(),
+                      ),
                     );
                   },
                 ),
@@ -1141,20 +1144,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: Color(0xFFF1F5F9),
-                    child: Icon(Icons.table_restaurant, color: Color(0xFF10B981)),
+                    child: Icon(
+                      Icons.table_restaurant,
+                      color: Color(0xFF10B981),
+                    ),
                   ),
                   title: const Text(
                     "Masalar Görünümüne Geç",
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   subtitle: const Text(
                     "Oyun Salonu ve VIP masalarını canlı izleyin",
                     style: TextStyle(color: Color(0xFF64748B)),
                   ),
-                  trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF0F172A)),
+                  trailing: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF0F172A),
+                  ),
                   onTap: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const WaiterTablesScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const WaiterTablesScreen(),
+                      ),
                     );
                   },
                 ),
@@ -1191,18 +1205,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         children: [
           const Text(
             "Haftalık Ciro Trendi",
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF0F172A)),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              color: Color(0xFF0F172A),
+            ),
           ),
           const SizedBox(height: 16),
           Expanded(
             child: data.isEmpty
-                ? const Center(child: Text("Veri yok", style: TextStyle(color: Color(0xFF64748B))))
+                ? const Center(
+                    child: Text(
+                      "Veri yok",
+                      style: TextStyle(color: Color(0xFF64748B)),
+                    ),
+                  )
                 : BarChart(
                     BarChartData(
                       borderData: FlBorderData(show: false),
                       titlesData: FlTitlesData(
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
@@ -1211,7 +1238,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                               if (index >= 0 && index < data.length) {
                                 return Text(
                                   data[index].dayName,
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0F172A),
+                                  ),
                                 );
                               }
                               return const SizedBox();
@@ -1253,12 +1284,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         children: [
           const Text(
             "Kategori Dağılımı",
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF0F172A)),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              color: Color(0xFF0F172A),
+            ),
           ),
           const SizedBox(height: 16),
           Expanded(
             child: data.isEmpty
-                ? const Center(child: Text("Veri yok", style: TextStyle(color: Color(0xFF64748B))))
+                ? const Center(
+                    child: Text(
+                      "Veri yok",
+                      style: TextStyle(color: Color(0xFF64748B)),
+                    ),
+                  )
                 : PieChart(
                     PieChartData(
                       sectionsSpace: 2,
@@ -1274,7 +1314,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         return PieChartSectionData(
                           color: colors[e.key % colors.length],
                           value: e.value.revenue,
-                          title: "${e.value.name}\n${e.value.revenue.toStringAsFixed(0)}₺",
+                          title:
+                              "${e.value.name}\n${e.value.revenue.toStringAsFixed(0)}₺",
                           radius: 55,
                           titleStyle: const TextStyle(
                             fontSize: 10,
@@ -1304,12 +1345,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         children: [
           const Text(
             "En Çok Satılan Ürünler",
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF0F172A)),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              color: Color(0xFF0F172A),
+            ),
           ),
           const SizedBox(height: 12),
           Expanded(
             child: data.isEmpty
-                ? const Center(child: Text("Veri yok", style: TextStyle(color: Color(0xFF64748B))))
+                ? const Center(
+                    child: Text(
+                      "Veri yok",
+                      style: TextStyle(color: Color(0xFF64748B)),
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: data.length,
                     itemBuilder: (context, index) {
@@ -1328,10 +1378,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                             ),
                           ),
                         ),
-                        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                        title: Text(
+                          item.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
                         trailing: Text(
                           "${item.quantity.toStringAsFixed(0)} Adet",
-                          style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                          ),
                         ),
                       );
                     },
@@ -1351,7 +1410,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: transactions.isEmpty
-          ? const Center(child: Text("Tahsilat kaydı yok", style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)))
+          ? const Center(
+              child: Text(
+                "Tahsilat kaydı yok",
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
           : ListView.builder(
               itemCount: transactions.length,
               itemBuilder: (context, index) {
@@ -1361,18 +1428,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   leading: Icon(
                     tx.paymentMethod == "CASH"
                         ? Icons.money_rounded
-                        : tx.paymentMethod == "CUSTOMER"
-                        ? Icons.account_balance_wallet_rounded
                         : Icons.credit_card_rounded,
                     color: tx.paymentMethod == "CASH"
                         ? const Color(0xFF10B981)
-                        : tx.paymentMethod == "CUSTOMER"
-                        ? const Color(0xFF8B5CF6)
                         : const Color(0xFF3B82F6),
                   ),
                   title: Text(
                     "Masa: ${tx.tableName}",
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   subtitle: Text(
                     "${tx.cashierName} • ${tx.paymentMethod}",
@@ -1380,7 +1446,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   ),
                   trailing: Text(
                     "${tx.amount.toStringAsFixed(2)} TL",
-                    style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF10B981)),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF10B981),
+                    ),
                   ),
                 );
               },
@@ -1397,17 +1466,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: expenses.isEmpty
-          ? const Center(child: Text("Gider kaydı yok", style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)))
+          ? const Center(
+              child: Text(
+                "Gider kaydı yok",
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
           : ListView.builder(
               itemCount: expenses.length,
               itemBuilder: (context, index) {
                 final exp = expenses[index];
                 return ListTile(
                   dense: true,
-                  leading: const Icon(Icons.remove_circle_outline, color: Color(0xFFEF4444)),
+                  leading: const Icon(
+                    Icons.remove_circle_outline,
+                    color: Color(0xFFEF4444),
+                  ),
                   title: Text(
                     exp.itemName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   subtitle: Text(
                     "${exp.quantity} x ${exp.unitPrice} TL",
@@ -1418,10 +1501,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     children: [
                       Text(
                         "${exp.totalAmount.toStringAsFixed(2)} TL",
-                        style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFEF4444)),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFEF4444),
+                        ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: Colors.grey,
+                        ),
                         onPressed: () => _deleteExpense(exp.id),
                       ),
                     ],
@@ -1441,17 +1531,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: customTables.isEmpty
-          ? const Center(child: Text("Özel masa yok", style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)))
+          ? const Center(
+              child: Text(
+                "Özel masa yok",
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
           : ListView.builder(
               itemCount: customTables.length,
               itemBuilder: (context, index) {
                 final table = customTables[index];
                 return ListTile(
                   dense: true,
-                  leading: const Icon(Icons.table_restaurant, color: Color(0xFF8B5CF6)),
+                  leading: const Icon(
+                    Icons.table_restaurant,
+                    color: Color(0xFF8B5CF6),
+                  ),
                   title: Text(
                     table.label,
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   subtitle: Text(
                     "Bölge: ${table.zone}",
@@ -1494,14 +1598,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           children: [
             if (onAdd != null)
               IconButton(
-                icon: const Icon(Icons.add_circle_outline, color: Color(0xFF10B981)),
+                icon: const Icon(
+                  Icons.add_circle_outline,
+                  color: Color(0xFF10B981),
+                ),
                 onPressed: onAdd,
               ),
             if (onSeeAll != null)
-              TextButton(
-                onPressed: onSeeAll,
-                child: const Text("Tümünü Gör"),
-              ),
+              TextButton(onPressed: onSeeAll, child: const Text("Tümünü Gör")),
           ],
         ),
       ],
@@ -1513,7 +1617,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 48),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFEF4444),
+            size: 48,
+          ),
           const SizedBox(height: 12),
           Text(
             "Veriler Yüklenemedi",

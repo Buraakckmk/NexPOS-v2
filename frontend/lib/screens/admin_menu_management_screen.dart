@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:dio/dio.dart";
 import "package:file_picker/file_picker.dart";
@@ -24,6 +26,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
   int? _selectedCategoryFilter;
   bool _isLoading = true;
   bool _isSubmitting = false;
+  Timer? _searchDebounce;
 
   bool _isAssetPath(String path) => path.trim().startsWith("assets/");
 
@@ -102,6 +105,11 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
       if (!mounted) return;
       _showError("Liste yenilenemedi: $e");
     }
+  }
+
+  void _onSearchChanged(String _) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), _refreshProducts);
   }
 
   Future<void> _refreshCategories({int? selectedCategoryId}) async {
@@ -741,55 +749,55 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final compactActions = screenWidth < 980;
-
+    final compactActions = MediaQuery.of(context).size.width < 980;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text("Ürün Yönetimi"),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
-        elevation: 0,
+      appBar: AppBar(title: const Text("Ürün Yönetimi"), backgroundColor: Colors.white, foregroundColor: const Color(0xFF0F172A), elevation: 0),
+      body: _isLoading ? const Center(child: CircularProgressIndicator()) : Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF0F766E), Color(0xFF115E59)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(20)),
+            child: Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.center, runSpacing: 12, spacing: 16, children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text("Menünüzü kolayca yönetin", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 5),
+                Text("${_products.length} ürün · ${_categories.length} kategori", style: const TextStyle(color: Color(0xFFD1FAE5), fontWeight: FontWeight.w600)),
+              ]),
+              FilledButton.icon(style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF0F766E)), onPressed: _openCreateDialog, icon: const Icon(Icons.add_rounded), label: const Text("Yeni ürün ekle")),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          _buildFilterToolbar(compactActions),
+          const SizedBox(height: 12),
+          Expanded(child: _products.isEmpty
+            ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.inventory_2_outlined, size: 48, color: Color(0xFF94A3B8)),
+                const SizedBox(height: 10),
+                const Text("Ürün bulunamadı", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                const Text("Arama veya kategori filtresini değiştirebilirsiniz.", style: TextStyle(color: Color(0xFF64748B))),
+              ]))
+            : LayoutBuilder(builder: (context, constraints) {
+                final columns = (constraints.maxWidth / 300).floor().clamp(1, 4);
+                return GridView.builder(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: columns, crossAxisSpacing: 12, mainAxisSpacing: 12, mainAxisExtent: 156),
+                  itemCount: _products.length,
+                  itemBuilder: (context, index) => _buildProductCard(_products[index]),
+                );
+              }),
+          ),
+        ]),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _buildFilterToolbar(compactActions),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: _products.isEmpty
-                          ? const Center(child: Text("Ürün bulunamadı"))
-                          : ListView.separated(
-                              itemCount: _products.length,
-                              separatorBuilder: (_, _) => const Divider(
-                                height: 1,
-                                color: Color(0xFFE2E8F0),
-                              ),
-                              itemBuilder: (context, index) {
-                                final p = _products[index];
-                                return _buildProductRow(p, compactActions);
-                              },
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
     );
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _nameController.dispose();
     _priceController.dispose();
@@ -802,186 +810,47 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
       initialValue: _selectedCategoryFilter,
       dropdownColor: Colors.white,
       style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
-      decoration: const InputDecoration(labelText: "Kategori (opsiyonel)"),
-      hint: const Text("Kategori seç", style: TextStyle(color: Color(0xFF64748B))),
-      items: _categories
-          .map(
-            (c) => DropdownMenuItem<int?>(
-              value: c.id,
-              child: Text(c.name, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700)),
-            ),
-          )
-          .toList(),
-      onChanged: (value) {
-        setState(() => _selectedCategoryFilter = value);
-        _refreshProducts();
-      },
+      decoration: const InputDecoration(labelText: "Kategori", prefixIcon: Icon(Icons.category_outlined)),
+      hint: const Text("Tüm kategoriler", style: TextStyle(color: Color(0xFF64748B))),
+      items: [
+        const DropdownMenuItem<int?>(value: null, child: Text("Tüm kategoriler")),
+        ..._categories.map((c) => DropdownMenuItem<int?>(value: c.id, child: Text(c.name, overflow: TextOverflow.ellipsis))),
+      ],
+      onChanged: (value) { setState(() => _selectedCategoryFilter = value); _refreshProducts(); },
     );
-
-    final createButton = FilledButton.icon(
-      onPressed: _openCreateDialog,
-      icon: const Icon(Icons.add_rounded),
-      label: const Text("Yeni Ürün Ekle"),
-    );
-
-    final manageCategoriesButton = OutlinedButton.icon(
-      onPressed: _openManageCategoriesDialog,
-      icon: const Icon(Icons.category_rounded),
-      label: const Text("Kategoriler"),
-    );
-
+    final manageCategoriesButton = OutlinedButton.icon(onPressed: _openManageCategoriesDialog, icon: const Icon(Icons.category_rounded), label: const Text("Kategorileri yönet"));
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth < 860) {
-            return Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: "Ürün ara",
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    suffixIcon: IconButton(
-                      onPressed: _refreshProducts,
-                      icon: const Icon(Icons.tune_rounded),
-                    ),
-                  ),
-                  onSubmitted: (_) => _refreshProducts(),
-                  onChanged: (v) {
-                    if (v.trim().isEmpty) _refreshProducts();
-                  },
-                ),
-                const SizedBox(height: 12),
-                categoryDropdown,
-                const SizedBox(height: 12),
-                SizedBox(width: double.infinity, child: manageCategoriesButton),
-                const SizedBox(height: 8),
-                SizedBox(width: double.infinity, child: createButton),
-              ],
-            );
-          }
-
-          return Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: "Ürün ara",
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    suffixIcon: IconButton(
-                      onPressed: _refreshProducts,
-                      icon: const Icon(Icons.tune_rounded),
-                    ),
-                  ),
-                  onSubmitted: (_) => _refreshProducts(),
-                  onChanged: (v) {
-                    if (v.trim().isEmpty) _refreshProducts();
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(width: compact ? 200 : 230, child: categoryDropdown),
-              const SizedBox(width: 12),
-              manageCategoriesButton,
-              const SizedBox(width: 12),
-              createButton,
-            ],
-          );
-        },
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final search = TextField(
+          controller: _searchController,
+          decoration: InputDecoration(hintText: "Ürün adıyla ara...", prefixIcon: const Icon(Icons.search_rounded), suffixIcon: _searchController.text.isEmpty ? null : IconButton(tooltip: "Aramayı temizle", onPressed: () { _searchController.clear(); _refreshProducts(); }, icon: const Icon(Icons.close_rounded))),
+          onChanged: _onSearchChanged,
+        );
+        if (constraints.maxWidth < 760) return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [search, const SizedBox(height: 10), categoryDropdown, const SizedBox(height: 10), manageCategoriesButton]);
+        return Row(children: [Expanded(child: search), const SizedBox(width: 12), SizedBox(width: compact ? 190 : 220, child: categoryDropdown), const SizedBox(width: 10), manageCategoriesButton]);
+      }),
     );
   }
 
-  Widget _buildProductRow(AdminMenuProduct p, bool compact) {
-    if (!compact) {
-      return ListTile(
-        title: Text(
-          p.name,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(p.categoryName),
-        trailing: Wrap(
-          spacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text(
-              "${p.price.toStringAsFixed(2)} TL",
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0F766E),
-              ),
-            ),
-            OutlinedButton.icon(
-              onPressed: () => _openEditDialog(p),
-              icon: const Icon(Icons.edit_rounded, size: 16),
-              label: const Text("Düzenle"),
-            ),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-              ),
-              onPressed: () => _deleteProduct(p),
-              icon: const Icon(Icons.delete_rounded, size: 16),
-              label: const Text("Sil"),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            p.name,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            p.categoryName,
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Text(
-                "${p.price.toStringAsFixed(2)} TL",
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F766E),
-                ),
-              ),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: () => _openEditDialog(p),
-                icon: const Icon(Icons.edit_rounded, size: 16),
-                label: const Text("Düzenle"),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
-                ),
-                onPressed: () => _deleteProduct(p),
-                icon: const Icon(Icons.delete_rounded, size: 16),
-                label: const Text("Sil"),
-              ),
-            ],
-          ),
-        ],
-      ),
+  Widget _buildProductCard(AdminMenuProduct product) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFFE2E8F0)), boxShadow: const [BoxShadow(color: Color(0x080F172A), blurRadius: 12, offset: Offset(0, 4))]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 38, height: 38, decoration: BoxDecoration(color: const Color(0xFFCCFBF1), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.restaurant_menu_rounded, color: Color(0xFF0F766E), size: 20)),
+          const SizedBox(width: 10),
+          Expanded(child: Text(product.categoryName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w700))),
+          PopupMenuButton<String>(tooltip: "Ürün işlemleri", onSelected: (value) => value == "edit" ? _openEditDialog(product) : _deleteProduct(product), itemBuilder: (_) => const [PopupMenuItem(value: "edit", child: Text("Düzenle")), PopupMenuItem(value: "delete", child: Text("Sil"))]),
+        ]),
+        const SizedBox(height: 12),
+        Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+        const Spacer(),
+        Row(children: [Expanded(child: Text("${product.price.toStringAsFixed(2)} TL", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F766E)))), TextButton.icon(onPressed: () => _openEditDialog(product), icon: const Icon(Icons.edit_outlined, size: 17), label: const Text("Düzenle"))]),
+      ]),
     );
   }
+
 }
