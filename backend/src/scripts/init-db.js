@@ -78,12 +78,23 @@ async function createSchema(client) {
       id BIGSERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL UNIQUE,
       image_path VARCHAR(255),
+      parent_category_id BIGINT REFERENCES categories(id) ON DELETE RESTRICT,
       printer_route VARCHAR(20) NOT NULL DEFAULT 'MUTFAK',
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
       sort_order INT NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `);
+
+  await client.query(`
+    ALTER TABLE categories
+    ADD COLUMN IF NOT EXISTS parent_category_id BIGINT REFERENCES categories(id) ON DELETE RESTRICT;
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_categories_parent_category_id
+    ON categories(parent_category_id);
   `);
 
   await client.query(`

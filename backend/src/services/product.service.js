@@ -46,15 +46,19 @@ async function listCategoriesForAdmin() {
         c.sort_order,
         c.is_active,
         c.image_path,
-        COALESCE(stats.active_product_count, 0)::int AS active_product_count
+        c.parent_category_id,
+        (
+          SELECT COUNT(*)::int
+          FROM products p
+          JOIN categories product_category ON product_category.id = p.category_id
+          WHERE p.is_active = TRUE
+            AND product_category.is_active = TRUE
+            AND (
+              product_category.id = c.id
+              OR product_category.parent_category_id = c.id
+            )
+        ) AS active_product_count
       FROM categories c
-      LEFT JOIN (
-        SELECT
-          category_id,
-          COUNT(*) FILTER (WHERE is_active = TRUE) AS active_product_count
-        FROM products
-        GROUP BY category_id
-      ) stats ON stats.category_id = c.id
       WHERE is_active = TRUE
       ORDER BY sort_order ASC NULLS LAST, name ASC;
     `
@@ -81,7 +85,16 @@ async function listProductsForAdmin({ search = "", categoryId = null }) {
         AND c.is_active = TRUE
         AND
         ($1 = '' OR p.name ILIKE '%' || $1 || '%')
-        AND ($2::bigint IS NULL OR p.category_id = $2)
+        AND (
+          $2::bigint IS NULL
+          OR p.category_id = $2
+          OR EXISTS (
+            SELECT 1
+            FROM categories child
+            WHERE child.id = p.category_id
+              AND child.parent_category_id = $2
+          )
+        )
       ORDER BY c.sort_order ASC NULLS LAST, p.name ASC;
     `,
     [normalizedSearch, categoryId]
@@ -94,6 +107,7 @@ async function createCategory({
   printerRoute = "MUTFAK",
   imagePath = null,
   sortOrder = null,
+  parentCategoryId = null,
 }) {
   const normalizedName = String(name || "").trim();
   const normalizedRoute = String(printerRoute || "MUTFAK").trim().toUpperCase();
@@ -101,6 +115,27 @@ async function createCategory({
   const normalizedSortOrder = Number.isInteger(sortOrder) && sortOrder >= 0
     ? sortOrder
     : null;
+
+  if (parentCategoryId != null) {
+    const { rows: parentRows } = await db.query(
+      `SELECT id FROM categories WHERE id = $1 AND is_active = TRUE AND parent_category_id IS NULL LIMIT 1;`,
+      [parentCategoryId]
+    );
+    if (!parentRows.length) {
+      const error = new Error("Ust kategori bulunamadi veya zaten alt kategori.");
+      error.code = "INVALID_PARENT_CATEGORY";
+      throw error;
+    }
+    const { rows: sameCategory } = await db.query(
+      `SELECT id FROM categories WHERE UPPER(name) = UPPER($1) AND id = $2 LIMIT 1;`,
+      [normalizedName, parentCategoryId]
+    );
+    if (sameCategory.length) {
+      const error = new Error("Kategori kendisinin alt kategorisi olamaz.");
+      error.code = "INVALID_PARENT_CATEGORY";
+      throw error;
+    }
+  }
 
   const { rows: existingRows } = await db.query(
     `
@@ -122,11 +157,12 @@ async function createCategory({
           image_path = $4,
           is_active = TRUE,
           sort_order = COALESCE($5, sort_order),
+          parent_category_id = $6,
           updated_at = NOW()
         WHERE id = $1
-        RETURNING id, name, printer_route, sort_order, is_active, image_path;
+        RETURNING id, name, printer_route, sort_order, is_active, image_path, parent_category_id;
       `,
-      [existingRows[0].id, normalizedName, normalizedRoute, normalizedImagePath, normalizedSortOrder]
+      [existingRows[0].id, normalizedName, normalizedRoute, normalizedImagePath, normalizedSortOrder, parentCategoryId]
     );
     return rows[0] || null;
   }
@@ -137,11 +173,11 @@ async function createCategory({
         SELECT COALESCE(MAX(sort_order), 0) + 1 AS value
         FROM categories
       )
-      INSERT INTO categories (name, printer_route, image_path, is_active, sort_order)
-      VALUES ($1, $2, $3, TRUE, COALESCE($4, (SELECT value FROM next_sort)))
-      RETURNING id, name, printer_route, sort_order, is_active, image_path;
+      INSERT INTO categories (name, printer_route, image_path, is_active, sort_order, parent_category_id)
+      VALUES ($1, $2, $3, TRUE, COALESCE($4, (SELECT value FROM next_sort)), $5)
+      RETURNING id, name, printer_route, sort_order, is_active, image_path, parent_category_id;
     `,
-    [normalizedName, normalizedRoute, normalizedImagePath, normalizedSortOrder]
+    [normalizedName, normalizedRoute, normalizedImagePath, normalizedSortOrder, parentCategoryId]
   );
 
   return rows[0] || null;
@@ -271,65 +307,47 @@ async function deleteProduct({ productId }) {
 }
 
 async function deleteCategory({ categoryId }) {
-  const { rows: activeRows } = await db.query(
+  // Keep category rows as historical references for existing orders. Deactivate
+  // the category, its direct subcategories, and products in those categories.
+  const { rows } = await db.query(
     `
-      SELECT COUNT(*)::int AS active_product_count
-      FROM products
-      WHERE category_id = $1
-        AND is_active = TRUE;
+      WITH target_category AS (
+        SELECT id
+        FROM categories
+        WHERE id = $1 AND is_active = TRUE
+      ), affected_categories AS (
+        SELECT id FROM target_category
+        UNION
+        SELECT c.id
+        FROM categories c
+        JOIN target_category parent ON c.parent_category_id = parent.id
+      ), deactivated_products AS (
+        UPDATE products
+        SET is_active = FALSE, updated_at = NOW()
+        WHERE category_id IN (SELECT id FROM affected_categories)
+          AND is_active = TRUE
+        RETURNING id
+      ), deactivated_categories AS (
+        UPDATE categories
+        SET is_active = FALSE, updated_at = NOW()
+        WHERE id IN (SELECT id FROM affected_categories)
+          AND is_active = TRUE
+        RETURNING id
+      )
+      SELECT
+        (SELECT id FROM target_category LIMIT 1) AS id,
+        (SELECT COUNT(*)::int FROM deactivated_products) AS deactivated_product_count,
+        (SELECT COUNT(*)::int FROM deactivated_categories) AS deactivated_category_count;
     `,
     [categoryId]
   );
-
-  const activeProductCount = activeRows[0]?.active_product_count ?? 0;
-
-  try {
-    const { rows } = await db.query(
-      `
-        DELETE FROM categories
-        WHERE id = $1
-        RETURNING id;
-      `,
-      [categoryId]
-    );
-
-    if (rows[0]) {
-      return {
-        id: rows[0].id,
-        softDeleted: false,
-        deactivatedProductCount: 0,
-      };
-    }
-    return null;
-  } catch (error) {
-    const constraintCodes = new Set(["23503", "23001"]);
-    if (!constraintCodes.has(String(error?.code || ""))) {
-      throw error;
-    }
-
-    const productResult = await db.query(
-      `
-        UPDATE products
-        SET is_active = FALSE,
-            updated_at = NOW()
-        WHERE category_id = $1
-          AND is_active = TRUE;
-      `,
-      [categoryId]
-    );
-
-    const deactivated = await deactivateCategory({ categoryId });
-    if (!deactivated) {
-      return null;
-    }
-
-    return {
-      id: deactivated.id,
-      softDeleted: true,
-      deactivatedProductCount:
-          productResult?.rowCount ?? Math.max(activeProductCount, 0),
-    };
-  }
+  const result = rows[0];
+  if (!result?.id) return null;
+  return {
+    id: result.id,
+    softDeleted: true,
+    deactivatedProductCount: result.deactivated_product_count ?? 0,
+  };
 }
 
 module.exports = {
@@ -344,5 +362,3 @@ module.exports = {
   deleteCategory,
   deactivateCategory,
 };
-
-

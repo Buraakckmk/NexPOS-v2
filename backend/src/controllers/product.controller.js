@@ -58,6 +58,12 @@ async function createCategoryAdmin(req, res, next) {
         ? null
         : Number.parseInt(String(rawSortOrder), 10);
 
+    const rawParentCategoryId = req.body?.parent_category_id;
+    const parentCategoryId =
+      rawParentCategoryId == null || rawParentCategoryId === ""
+        ? null
+        : Number.parseInt(String(rawParentCategoryId), 10);
+
     if (!name) {
       return res.status(400).json({ message: "Kategori adi bos birakilamaz." });
     }
@@ -70,11 +76,15 @@ async function createCategoryAdmin(req, res, next) {
     if (sortOrder != null && (!Number.isInteger(sortOrder) || sortOrder < 0)) {
       return res.status(400).json({ message: "Siralama degeri gecersiz." });
     }
+    if (parentCategoryId != null && (!Number.isInteger(parentCategoryId) || parentCategoryId <= 0)) {
+      return res.status(400).json({ message: "Ust kategori kimligi gecersiz." });
+    }
     const category = await productService.createCategory({
       name,
       printerRoute,
       imagePath,
       sortOrder,
+      parentCategoryId,
     });
 
     if (!category) {
@@ -85,6 +95,9 @@ async function createCategoryAdmin(req, res, next) {
 
     return res.status(201).json({ message: "Kategori kaydedildi.", category });
   } catch (error) {
+    if (error?.code === "INVALID_PARENT_CATEGORY") {
+      return res.status(400).json({ message: error.message });
+    }
     if (error?.code === "23505") {
       return res.status(409).json({ message: "Bu isimde kategori zaten var." });
     }

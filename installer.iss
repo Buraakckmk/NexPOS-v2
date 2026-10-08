@@ -31,7 +31,8 @@ Name: "desktopicon"; Description: "Masaüstü kısayolu oluştur"; GroupDescript
 
 [Files]
 Source: "{#BuildSourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "backend\*"; DestDir: "{app}\backend"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "logs\*,node_modules\.cache\*"
+Source: "backend\*"; DestDir: "{app}\backend"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "logs\*,node_modules\.cache\*,.env"
+Source: "backend\.env.example"; DestDir: "{app}\backend"; DestName: ".env"; Flags: onlyifdoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

@@ -1000,8 +1000,8 @@ class OrderProvider extends ChangeNotifier {
     _amountPaymentPaid = _safeDouble(activeOrder?["amount_payment_paid"]);
     _discountTotal = _safeDouble(activeOrder?["discount_total"]);
 
-    if (activeOrder != null && activeOrder["created_at"] != null) {
-      _activeOrderCreatedAt = DateTime.tryParse(activeOrder["created_at"].toString())?.toLocal();
+    if (activeOrder != null && activeOrder["opened_at"] != null) {
+      _activeOrderCreatedAt = DateTime.tryParse(activeOrder["opened_at"].toString())?.toLocal();
     } else {
       _activeOrderCreatedAt = null;
     }

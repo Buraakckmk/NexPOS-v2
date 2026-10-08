@@ -217,7 +217,7 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
                         subtitle: Text(
                           "${DateFormat("dd.MM.yyyy HH:mm").format(DateTime.parse(tx.paidAt))} • ${tx.cashierName}",
                         ),
-                        trailing: Row(
+                        trailing: FittedBox(fit: BoxFit.scaleDown, child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
@@ -245,7 +245,7 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
                               ],
                             ),
                           ],
-                        ),
+                        )),
                       );
                     },
                   ),
@@ -259,11 +259,15 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
   Widget _buildPagination() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 16,
+        runSpacing: 8,
         children: [
           Text("Toplam: $_totalItems"),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
                 icon: const Icon(Icons.chevron_left),
@@ -311,6 +315,7 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => AlertDialog(
+          scrollable: true,
           title: const Text("Filtrele ve Sırala"),
           content: SingleChildScrollView(
             child: Column(

@@ -113,11 +113,7 @@ function tryCall(printer, method, ...args) {
 }
 
 function normalizePrinterType(value) {
-  const printerType = String(value ?? "").trim().toUpperCase();
-  if (["KASA", "CASH"].includes(printerType)) return PRINTER_TYPES.KASA;
-  if (["MUTFAK", "KITCHEN"].includes(printerType)) return PRINTER_TYPES.MUTFAK;
-  if (printerType === "BAR") return PRINTER_TYPES.BAR;
-  return null;
+  return PRINTER_TYPES.KASA;
 }
 
 function resolvePrinterIp(printerType) {
@@ -678,8 +674,7 @@ function buildXReportText({
 }
 
 function resolveDepartmentPrinter(categoryName) {
-  const normalized = String(categoryName ?? "").trim().toUpperCase();
-  return BAR_CATEGORIES.has(normalized) ? PRINTER_TYPES.BAR : PRINTER_TYPES.MUTFAK;
+  return PRINTER_TYPES.KASA;
 }
 
 function splitItemsByPrinter(items = []) {

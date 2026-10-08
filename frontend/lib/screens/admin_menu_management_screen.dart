@@ -3,6 +3,7 @@ import "dart:async";
 import "package:flutter/material.dart";
 import "package:dio/dio.dart";
 import "package:file_picker/file_picker.dart";
+import "package:flutter/services.dart";
 
 import "../services/admin_auth_service.dart";
 import "../services/admin_menu_service.dart";
@@ -91,6 +92,17 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  List<DropdownMenuItem<int>> _buildCategoryDropdownItems() {
+    final List<DropdownMenuItem<int>> items = [];
+    for (final parent in _categories.where((c) => c.parentCategoryId == null)) {
+      items.add(DropdownMenuItem<int>(value: parent.id, child: Text(parent.name, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700))));
+      for (final child in _categories.where((c) => c.parentCategoryId == parent.id)) {
+        items.add(DropdownMenuItem<int>(value: child.id, child: Text("  ↳ ${child.name}", style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w500))));
+      }
+    }
+    return items;
   }
 
   Future<void> _refreshProducts() async {
@@ -193,14 +205,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                     dropdownColor: Colors.white,
                     style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                     decoration: const InputDecoration(labelText: "Kategori"),
-                    items: _categories
-                        .map(
-                          (c) => DropdownMenuItem<int>(
-                            value: c.id,
-                            child: Text(c.name, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700)),
-                          ),
-                        )
-                        .toList(),
+                    items: _buildCategoryDropdownItems(),
                     onChanged: (value) =>
                         setModalState(() => selectedCategoryId = value),
                   ),
@@ -260,6 +265,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
   Future<void> _openCreateCategoryDialog() async {
     _categoryNameController.clear();
     String selectedImagePath = "";
+    int? selectedParentCategoryId;
 
     await showDialog<void>(
       context: context,
@@ -276,6 +282,26 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                   controller: _categoryNameController,
                   autofocus: true,
                   decoration: const InputDecoration(labelText: "Kategori Adı"),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int?>(
+                  initialValue: selectedParentCategoryId,
+                  decoration: const InputDecoration(labelText: "Üst Kategori (Opsiyonel)"),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text("Yok (Ana Kategori)"),
+                    ),
+                    ..._categories.where((c) => c.parentCategoryId == null).map(
+                      (c) => DropdownMenuItem<int?>(
+                        value: c.id,
+                        child: Text(c.name, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                  ],
+                  onChanged: _isSubmitting ? null : (val) {
+                    setModalState(() => selectedParentCategoryId = val);
+                  },
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -349,6 +375,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                         await AdminMenuService.createCategory(
                           name: name,
                           imagePath: selectedImagePath,
+                          parentCategoryId: selectedParentCategoryId,
                         );
                         if (!mounted || !ctx.mounted) return;
                         Navigator.of(ctx).pop();
@@ -410,14 +437,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                     dropdownColor: Colors.white,
                     style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                     decoration: const InputDecoration(labelText: "Kategori"),
-                    items: _categories
-                        .map(
-                          (c) => DropdownMenuItem<int>(
-                            value: c.id,
-                            child: Text(c.name, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700)),
-                          ),
-                        )
-                        .toList(),
+                    items: _buildCategoryDropdownItems(),
                     onChanged: (value) =>
                         setModalState(() => selectedCategoryId = value),
                   ),
@@ -518,14 +538,33 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                       separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final category = dialogCategories[index];
+                        AdminMenuCategory? parentCategory;
+                        for (final candidate in dialogCategories) {
+                          if (candidate.id == category.parentCategoryId) {
+                            parentCategory = candidate;
+                            break;
+                          }
+                        }
+                        final isSubcategory = category.parentCategoryId != null;
                         final hasActiveProducts =
                             category.activeProductCount > 0;
+                        final childCategoryCount = dialogCategories
+                            .where((item) => item.parentCategoryId == category.id)
+                            .length;
+                        final categorySummary = isSubcategory
+                            ? "Alt kategori${parentCategory == null ? "" : " · ${parentCategory.name}"} · ${category.activeProductCount} aktif ürün"
+                            : "${category.activeProductCount} aktif ürün · $childCategoryCount alt kategori";
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 6,
+                          contentPadding: EdgeInsets.only(
+                            left: isSubcategory ? 24 : 4,
+                            right: 4,
                           ),
-                          leading: category.imagePath.trim().isEmpty
+                          leading: isSubcategory
+                              ? const Icon(
+                                  Icons.subdirectory_arrow_right_rounded,
+                                  color: Color(0xFF64748B),
+                                )
+                              : category.imagePath.trim().isEmpty
                               ? CircleAvatar(
                                   backgroundColor: const Color(0xFFE2E8F0),
                                   foregroundColor: const Color(0xFF334155),
@@ -548,17 +587,24 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                                 ),
                           title: Text(
                             category.name,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              fontWeight: isSubcategory
+                                  ? FontWeight.w500
+                                  : FontWeight.w700,
+                            ),
                           ),
                           subtitle: Text(
                             hasActiveProducts
-                                ? "${category.activeProductCount} aktif ürün var"
-                                : "Aktif ürün yok",
+                                ? categorySummary
+                                : isSubcategory
+                                ? "Alt kategori · aktif ürün yok"
+                                : "Aktif ürün yok · $childCategoryCount alt kategori",
                           ),
-                          trailing: FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFFDC2626),
-                            ),
+                          trailing: IconButton(
+                            tooltip: isSubcategory
+                                ? "Alt kategoriyi sil"
+                                : "Kategoriyi sil",
+                            color: const Color(0xFFDC2626),
                             onPressed: _isSubmitting
                                 ? null
                                 : () async {
@@ -573,9 +619,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                                   },
                             icon: const Icon(
                               Icons.delete_outline_rounded,
-                              size: 18,
                             ),
-                            label: const Text("Sil"),
                           ),
                         );
                       },
@@ -647,9 +691,10 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text("Kategori Sil"),
         content: Text(
-          category.activeProductCount > 0
-              ? "${category.name} kategorisinde ${category.activeProductCount} aktif ürün var. Silersen kategori ve bu ürünler pasife alınacak. Devam edilsin mi?"
-              : "${category.name} kategorisini silmek istediğinize emin misiniz?",
+          "${category.name} kategorisi pasife alınacak. "
+          "${_categories.any((c) => c.parentCategoryId == category.id) ? "Alt kategorileri de pasife alınacak. " : ""}"
+          "${category.activeProductCount > 0 ? "Bu kategoride ${category.activeProductCount} aktif ürün var; ürünler de pasife alınacak. " : ""}"
+          "Devam edilsin mi?",
         ),
         actions: [
           TextButton(
@@ -707,13 +752,18 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
             TextField(
               controller: pinController,
               keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
               obscureText: true,
               autofocus: true,
               decoration: const InputDecoration(
                 labelText: "Yönetici PIN",
-                hintText: "PIN girin",
+                hintText: "6 haneli PIN",
               ),
-              onSubmitted: (_) => Navigator.of(ctx).pop(true),
+              onSubmitted: (_) {
+                if (pinController.text.trim().length == 6) {
+                  Navigator.of(ctx).pop(true);
+                }
+              },
             ),
           ],
         ),
@@ -723,7 +773,13 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
             child: const Text("İptal"),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
+            onPressed: () {
+              if (pinController.text.trim().length != 6) {
+                _showError("Yönetici PIN 6 haneli olmalı.");
+                return;
+              }
+              Navigator.of(ctx).pop(true);
+            },
             child: const Text("Doğrula"),
           ),
         ],
@@ -733,8 +789,8 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
     if (approved != true) return false;
 
     final pin = pinController.text.trim();
-    if (pin.isEmpty) {
-      _showError("PIN boş bırakılamaz.");
+    if (pin.length != 6) {
+      _showError("Yönetici PIN 6 haneli olmalı.");
       return false;
     }
 
@@ -814,7 +870,10 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
       hint: const Text("Tüm kategoriler", style: TextStyle(color: Color(0xFF64748B))),
       items: [
         const DropdownMenuItem<int?>(value: null, child: Text("Tüm kategoriler")),
-        ..._categories.map((c) => DropdownMenuItem<int?>(value: c.id, child: Text(c.name, overflow: TextOverflow.ellipsis))),
+        ..._categories.map((c) => DropdownMenuItem<int?>(
+          value: c.id,
+          child: Text(c.parentCategoryId == null ? c.name : "  ↳ ${c.name}", overflow: TextOverflow.ellipsis),
+        )),
       ],
       onChanged: (value) { setState(() => _selectedCategoryFilter = value); _refreshProducts(); },
     );

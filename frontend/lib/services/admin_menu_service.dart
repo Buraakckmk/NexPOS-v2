@@ -18,12 +18,14 @@ class AdminMenuCategory {
   final String name;
   final String imagePath;
   final int activeProductCount;
+  final int? parentCategoryId;
 
   const AdminMenuCategory({
     required this.id,
     required this.name,
     required this.imagePath,
     required this.activeProductCount,
+    this.parentCategoryId,
   });
 
   factory AdminMenuCategory.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,9 @@ class AdminMenuCategory {
       name: (json["name"] ?? "").toString(),
       imagePath: (json["image_path"] ?? "").toString(),
       activeProductCount: _safeInt(json["active_product_count"]),
+      parentCategoryId: json["parent_category_id"] != null
+          ? _safeInt(json["parent_category_id"])
+          : null,
     );
   }
 }
@@ -78,14 +83,19 @@ class AdminMenuService {
   static Future<void> createCategory({
     required String name,
     String? imagePath,
+    int? parentCategoryId,
   }) async {
+    final normalizedImagePath = imagePath?.trim() ?? "";
+    final requestData = <String, dynamic>{"name": name};
+    if (normalizedImagePath.isNotEmpty) {
+      requestData["image_path"] = normalizedImagePath;
+    }
+    if (parentCategoryId != null) {
+      requestData["parent_category_id"] = parentCategoryId;
+    }
     await ApiClient.dio.post(
       "/admin/menu/categories",
-      data: {
-        "name": name,
-        if (imagePath != null && imagePath.trim().isNotEmpty)
-          "image_path": imagePath.trim(),
-      },
+      data: requestData,
     );
   }
 

@@ -1406,7 +1406,7 @@ class _PosOrderViewState extends State<_PosOrderView> {
                           if (!context.mounted) return;
                           if (ok) {
                             AppFeedbackService.showSuccess(
-                              "Yeni ürünler mutfağa gönderildi.",
+                              "Yeni ürünler yazıcıya gönderildi.",
                             );
                             _navigateToHomeAfterTableClosed(context);
                           } else {
@@ -1787,7 +1787,7 @@ class _PosOrderViewState extends State<_PosOrderView> {
                           if (!context.mounted) return;
                           if (ok) {
                             AppFeedbackService.showSuccess(
-                              "Yeni ürünler mutfağa gönderildi.",
+                              "Yeni ürünler yazıcıya gönderildi.",
                             );
                             _navigateToHomeAfterTableClosed(context);
                           } else {
@@ -2265,7 +2265,7 @@ class _PosOrderViewState extends State<_PosOrderView> {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         itemCount: subCats.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, i) {
           final subCat = subCats[i];
           return buildSubCategoryChip(subCat, _activeSubCategory == subCat);
@@ -2330,7 +2330,7 @@ class _PosOrderViewState extends State<_PosOrderView> {
         padding: EdgeInsets.all(compactLayout ? 8 : 10),
         physics: const BouncingScrollPhysics(),
         itemCount: categories.length,
-        separatorBuilder: (_, __) => SizedBox(height: compactLayout ? 8 : 10),
+        separatorBuilder: (_, _) => SizedBox(height: compactLayout ? 8 : 10),
         itemBuilder: (context, index) {
           final cat = categories[index];
           final isSelected = _activeCategory == cat.label;
@@ -3701,7 +3701,7 @@ class _ReceiptSidebar extends StatelessWidget {
                               if (!context.mounted) return;
                               if (ok) {
                                 AppFeedbackService.showSuccess(
-                                  "Yeni ürünler mutfağa gönderildi.",
+                                  "Yeni ürünler yazıcıya gönderildi.",
                                 );
                                 Navigator.of(context).pop(true);
                               } else {

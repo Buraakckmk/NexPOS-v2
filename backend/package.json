@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
+    "test": "node test/product.service.test.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "init-db": "node src/scripts/init-db.js",

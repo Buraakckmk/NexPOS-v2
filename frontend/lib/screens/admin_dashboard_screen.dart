@@ -807,46 +807,58 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
           const Spacer(),
           // Hızlı Butonlar
-          _buildHeaderPillButton(
-            icon: Icons.inventory_2_rounded,
-            label: "Ürün Yönetimi",
-            color: const Color(0xFF0EA5E9),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const AdminMenuManagementScreen(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-          _buildHeaderPillButton(
-            icon: Icons.description_rounded,
-            label: "X Raporu",
-            color: const Color(0xFFF59E0B),
-            isLoading: _isFetchingXReport,
-            onPressed: _isFetchingXReport ? null : _fetchXReport,
-          ),
-          const SizedBox(width: 8),
-          _buildHeaderPillButton(
-            icon: Icons.power_settings_new_rounded,
-            label: "Günü Kapat",
-            color: const Color(0xFFEF4444),
-            isLoading: _isGeneratingZReport,
-            onPressed: _isGeneratingZReport ? null : _generateZReport,
-          ),
-          const SizedBox(width: 8),
-          _buildHeaderPillButton(
-            icon: Icons.table_restaurant_rounded,
-            label: "Masa Ekranı",
-            color: const Color(0xFF0F766E),
-            onPressed: _returnToTables,
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-            tooltip: "Yenile",
-            onPressed: _refreshData,
+          Expanded(
+            flex: 2,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              reverse: true,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _buildHeaderPillButton(
+                    icon: Icons.inventory_2_rounded,
+                    label: "Ürün Yönetimi",
+                    color: const Color(0xFF0EA5E9),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AdminMenuManagementScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  _buildHeaderPillButton(
+                    icon: Icons.description_rounded,
+                    label: "X Raporu",
+                    color: const Color(0xFFF59E0B),
+                    isLoading: _isFetchingXReport,
+                    onPressed: _isFetchingXReport ? null : _fetchXReport,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildHeaderPillButton(
+                    icon: Icons.power_settings_new_rounded,
+                    label: "Günü Kapat",
+                    color: const Color(0xFFEF4444),
+                    isLoading: _isGeneratingZReport,
+                    onPressed: _isGeneratingZReport ? null : _generateZReport,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildHeaderPillButton(
+                    icon: Icons.table_restaurant_rounded,
+                    label: "Masa Ekranı",
+                    color: const Color(0xFF0F766E),
+                    onPressed: _returnToTables,
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    tooltip: "Yenile",
+                    onPressed: _refreshData,
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

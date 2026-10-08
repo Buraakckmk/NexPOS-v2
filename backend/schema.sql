@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS categories (
   id BIGSERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL UNIQUE,
   image_path VARCHAR(255),
+  parent_category_id BIGINT REFERENCES categories(id) ON DELETE RESTRICT,
   printer_route VARCHAR(20) NOT NULL DEFAULT 'MUTFAK' CHECK (printer_route IN ('MUTFAK', 'BAR', 'KASA')),
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   sort_order INT NOT NULL DEFAULT 0,
@@ -180,6 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_status ON order_items(item_status);
 CREATE INDEX IF NOT EXISTS idx_order_items_category_snapshot ON order_items(category_snapshot);
 CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_categories_parent_category_id ON categories(parent_category_id);
 CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_payments_paid_at ON payments(paid_at);
 CREATE INDEX IF NOT EXISTS idx_voids_order_id ON voids(order_id);

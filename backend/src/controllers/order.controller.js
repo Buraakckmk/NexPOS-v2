@@ -1456,8 +1456,6 @@ async function amountPayment(req, res, next) {
               closed_by_user_id = $2,
               payment_lock_user_id = NULL,
               payment_lock_at = NULL,
-              subtotal = 0,
-              grand_total = 0,
               updated_at = NOW()
           WHERE id = $1
         `,
