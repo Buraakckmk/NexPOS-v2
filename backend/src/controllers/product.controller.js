@@ -28,10 +28,14 @@ function emitMenuRefresh(req) {
 
 async function listProducts(req, res, next) {
   try {
-    const products = await productService.listActiveProductsForWaiter();
+    const [products, categories] = await Promise.all([
+      productService.listActiveProductsForWaiter(),
+      productService.listActiveCategoriesForWaiter(),
+    ]);
     return res.status(200).json({
       count: products.length,
       products,
+      categories,
     });
   } catch (error) {
     return next(error);
@@ -97,6 +101,9 @@ async function createCategoryAdmin(req, res, next) {
   } catch (error) {
     if (error?.code === "INVALID_PARENT_CATEGORY") {
       return res.status(400).json({ message: error.message });
+    }
+    if (error?.code === "CATEGORY_NAME_EXISTS") {
+      return res.status(409).json({ message: error.message });
     }
     if (error?.code === "23505") {
       return res.status(409).json({ message: "Bu isimde kategori zaten var." });

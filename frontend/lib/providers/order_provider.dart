@@ -68,6 +68,17 @@ List<Map<String, dynamic>> _extractProductRows(dynamic payload) {
       .toList();
 }
 
+List<Map<String, dynamic>> _extractCategoryRows(dynamic payload) {
+  if (payload is! Map) return const [];
+  final raw = payload["categories"] ??
+      (payload["data"] is Map ? payload["data"]["categories"] : null);
+  if (raw is! List) return const [];
+  return raw
+      .whereType<Map>()
+      .map((row) => Map<String, dynamic>.from(row))
+      .toList();
+}
+
 Map<String, dynamic> _extractMap(dynamic payload) {
   if (payload is Map<String, dynamic>) return payload;
   if (payload is Map) return Map<String, dynamic>.from(payload);
@@ -238,6 +249,32 @@ class MenuProduct {
   }
 }
 
+class MenuCategory {
+  final int id;
+  final String name;
+  final int? parentCategoryId;
+  final String? parentCategoryName;
+
+  const MenuCategory({
+    required this.id,
+    required this.name,
+    this.parentCategoryId,
+    this.parentCategoryName,
+  });
+
+  factory MenuCategory.fromJson(Map<String, dynamic> json) {
+    final rawParentId = json["parent_category_id"];
+    final parentId = rawParentId == null ? null : _safeInt(rawParentId);
+    final parentName = _normalizedText(json["parent_category_name"]);
+    return MenuCategory(
+      id: _safeInt(json["id"]),
+      name: _normalizedText(json["name"]),
+      parentCategoryId: parentId != null && parentId > 0 ? parentId : null,
+      parentCategoryName: parentName.isEmpty ? null : parentName,
+    );
+  }
+}
+
 class CartLine {
   final MenuProduct product;
   final double unitPrice;
@@ -328,10 +365,18 @@ class ActiveOrderItem {
 class OrderProvider extends ChangeNotifier {
   final int tableId;
   bool _disposed = false;
+  Timer? _playStationPriceTicker;
 
   OrderProvider(this.tableId) {
     _initSocket();
     SocketService().socketNotifier.addListener(_initSocket);
+    _playStationPriceTicker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (_disposed || _activeOrderCreatedAt == null) return;
+      final hasUnlimited = _existingNames.values.any(
+        (name) => name.trim().toLowerCase() == "sınırsız",
+      );
+      if (hasUnlimited) notifyListeners();
+    });
   }
 
   void _initSocket() {
@@ -365,6 +410,7 @@ class OrderProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _playStationPriceTicker?.cancel();
     SocketService().socketNotifier.removeListener(_initSocket);
     final socket = SocketService().socket;
     if (socket != null) {
@@ -395,6 +441,7 @@ class OrderProvider extends ChangeNotifier {
   bool _isPrintingReceipt = false;
   String? _errorMessage;
   final List<MenuProduct> _products = [];
+  final List<MenuCategory> _menuCategories = [];
   final Map<int, double> _existingItems = {};
   final Map<int, String> _existingNames = {};
   final Map<int, double> _existingPrices = {};
@@ -444,6 +491,12 @@ class OrderProvider extends ChangeNotifier {
   /// Returns only top-level (root) category names — i.e. categories that have
   /// no parent. Sub-categories are NOT included here; use [subCategoriesOf].
   List<String> get categories {
+    if (_menuCategories.isNotEmpty) {
+      return _menuCategories
+          .where((category) => category.parentCategoryId == null)
+          .map((category) => category.name)
+          .toList();
+    }
     final set = <String>{};
     for (final p in _products) {
       // If the product belongs to a sub-category, register the parent as the
@@ -457,6 +510,14 @@ class OrderProvider extends ChangeNotifier {
   /// Returns the sub-category names that are direct children of [parentCategoryName].
   List<String> subCategoriesOf(String parentCategoryName) {
     final normParent = _normalizeCategory(parentCategoryName);
+    if (_menuCategories.isNotEmpty) {
+      return _menuCategories
+          .where((category) =>
+              category.parentCategoryName != null &&
+              _normalizeCategory(category.parentCategoryName!) == normParent)
+          .map((category) => category.name)
+          .toList();
+    }
     final seen = <String>{};
     for (final p in _products) {
       if (p.parentCategoryName != null &&
@@ -739,6 +800,26 @@ class OrderProvider extends ChangeNotifier {
       return;
     }
 
+    final selectedHours = _playStationSessionHours(product.name);
+    if (product.topLevelCategory.trim().toUpperCase() == "PLAYSTATION" &&
+        selectedHours != null) {
+      final activeProductIds = <int>{..._existingItems.keys, ..._cart.keys};
+      final productNames = <int, String>{
+        for (final item in _products) item.id: item.name,
+      };
+      for (final activeProductId in activeProductIds) {
+        final activeName = _existingNames[activeProductId] ??
+            productNames[activeProductId] ?? "";
+        final activeHours = _playStationSessionHours(activeName);
+        if (activeHours != null && activeHours != selectedHours) {
+          _errorMessage =
+              "Bu masada $activeHours saat seçeneği zaten var. Uzatmak için aynı $activeHours saatlik ürünü tekrar ekleyin ya da mevcut seçimi kaldırıp $selectedHours saat seçin.";
+          notifyListeners();
+          return;
+        }
+      }
+    }
+
     final normalizedVariant = _normalizeNote(variant);
 
     final existingCartNote = _normalizeNote(_cartNotes[product.id]);
@@ -776,6 +857,14 @@ class OrderProvider extends ChangeNotifier {
     }
     _rememberLastAddedProduct(product.id);
     notifyListeners();
+  }
+
+  int? _playStationSessionHours(String productName) {
+    final match = RegExp(
+      r'PS[45]\b.*?([1-9]\d*)\s*saat\b',
+      caseSensitive: false,
+    ).firstMatch(productName);
+    return match == null ? null : int.tryParse(match.group(1) ?? "");
   }
 
   String noteForProduct(int productId) => _resolveNote(productId);
@@ -904,6 +993,10 @@ class OrderProvider extends ChangeNotifier {
       ]);
 
       final rawProducts = _extractProductRows(results[0].data);
+      final rawCategories = _extractCategoryRows(results[0].data);
+      _menuCategories
+        ..clear()
+        ..addAll(rawCategories.map(MenuCategory.fromJson).where((c) => c.id > 0 && c.name.isNotEmpty));
 
       if (rawProducts.isNotEmpty) {
         final parsedProducts = rawProducts

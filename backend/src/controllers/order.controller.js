@@ -9,6 +9,28 @@ function buildHttpError(message, statusCode = 400) {
   return error;
 }
 
+async function refreshPlayStationUnlimitedPrices(client, orderId, openedAt) {
+  const openedAtMs = new Date(openedAt).getTime();
+  if (!Number.isFinite(openedAtMs)) return;
+
+  // PLAYSTATION "Sınırsız" tarifesi: 200 TL/saat, dakika oranında.
+  // Aynı hesap UI'da kullanılır; tutar sipariş açılışından ödeme anına kadar büyür.
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - openedAtMs) / 60000));
+  const unitPrice = Math.round((elapsedMinutes / 60) * 200);
+  await client.query(
+    `
+      UPDATE order_items
+      SET unit_price_snapshot = $3,
+          line_total = ROUND((quantity * $3)::numeric, 2),
+          updated_at = NOW()
+      WHERE order_id = $1
+        AND item_status NOT IN ('VOID', 'PAID')
+        AND LOWER(TRIM(product_name_snapshot)) = LOWER($2)
+    `,
+    [orderId, "Sınırsız", unitPrice]
+  );
+}
+
 async function refreshOrderTotals(client, orderId) {
   await client.query(
     `
@@ -471,7 +493,7 @@ async function partialCheckout(req, res, next) {
 
       const { rows: targetOrderRows } = await client.query(
         `
-          SELECT id, order_status
+          SELECT id, order_status, opened_at
           FROM orders
           WHERE id = $1
           FOR UPDATE
@@ -482,6 +504,12 @@ async function partialCheckout(req, res, next) {
       if (!targetOrderRows.length) {
         throw buildHttpError("Siparis bulunamadi.", 404);
       }
+
+      await refreshPlayStationUnlimitedPrices(
+        client,
+        orderId,
+        targetOrderRows[0].opened_at
+      );
 
       if (!["OPEN", "CONFIRMED"].includes(targetOrderRows[0].order_status)) {
         throw buildHttpError("Bu siparis kismi odemeye uygun degil.", 400);
@@ -1316,7 +1344,7 @@ async function amountPayment(req, res, next) {
 
     const { rows: orderRows } = await client.query(
       `
-        SELECT id, table_id, order_status, subtotal, discount_total, grand_total
+        SELECT id, table_id, order_status, subtotal, discount_total, grand_total, opened_at
         FROM orders
         WHERE id = $1
         FOR UPDATE
@@ -1333,6 +1361,8 @@ async function amountPayment(req, res, next) {
       await client.query("ROLLBACK");
       return res.status(400).json({ message: "Bu siparis odemeye uygun degil." });
     }
+
+    await refreshPlayStationUnlimitedPrices(client, orderId, orderRows[0].opened_at);
 
     let currentGrandTotal = Number(orderRows[0].grand_total);
     const currentSubtotal = Number(orderRows[0].subtotal ?? currentGrandTotal);
@@ -1399,6 +1429,10 @@ async function amountPayment(req, res, next) {
 
     // Önemli: Artık 'remaining' değişkeni yukarıdaki hesaplamalara göre netleşti.
     const remaining = Number(currentGrandTotal.toFixed(2));
+    if (amount <= 0 && remaining > 0.005) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ message: "Tahsilat tutari sifirdan buyuk olmalidir." });
+    }
 
     // Yüzeysel bir hata payı (floating point) bırakalım
     if (amount > remaining + 0.05) {
@@ -1437,7 +1471,20 @@ async function amountPayment(req, res, next) {
 
     // Eğer tüm borç kapandıysa (veya indirimle sıfırlandıysa) masayı kapat.
     // Tutar girilerek yapılan ödemelerde borç bitmediyse masa açık kalmaya devam eder.
-    if (Math.abs(remaining - netAmount) < 0.05) {
+    const { rows: balanceAfterPaymentRows } = await client.query(
+      `
+        SELECT GREATEST(
+          COALESCE((SELECT SUM(oi.line_total) FROM order_items oi WHERE oi.order_id = o.id AND oi.item_status <> 'VOID'), 0)
+          - o.discount_total
+          - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.order_id = o.id), 0),
+          0
+        ) AS remaining_balance
+        FROM orders o WHERE o.id = $1
+      `,
+      [orderId]
+    );
+    const remainingAfterPayment = Number(Number(balanceAfterPaymentRows[0]?.remaining_balance || 0).toFixed(2));
+    if (remainingAfterPayment <= 0.05) {
       // Önemli: Eğer borç 0 veya indirimle 0'a düştüyse, masadaki tüm ürünleri PAID yapmalıyız ki masa kapansın.
       await client.query(
         `
@@ -1512,7 +1559,7 @@ async function amountPayment(req, res, next) {
       success: true,
       message: tableClosed ? "Ödeme tamamlandı. Masa kapatıldı." : "Ödeme alındı.",
       amount: netAmount,
-      is_fully_paid: Math.abs(remaining - netAmount) < 0.05,
+      is_fully_paid: tableClosed,
       table_closed: tableClosed
     });
   } catch (error) {

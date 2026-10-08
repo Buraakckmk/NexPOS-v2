@@ -81,6 +81,15 @@ async function ensureOrderSchema() {
   }
 }
 
+function getPlayStationSessionHours(product) {
+  const isPlayStation = [product?.category_name, product?.parent_category_name]
+    .some((name) => String(name || "").trim().toUpperCase() === "PLAYSTATION");
+  if (!isPlayStation) return null;
+
+  const match = String(product?.name || "").match(/PS[45]\b.*?([1-9]\d*)\s*saat\b/i);
+  return match ? Number(match[1]) : null;
+}
+
 function normalizeNote(note) {
   const trimmed = String(note ?? "").trim();
   return trimmed.length ? trimmed : null;
@@ -310,9 +319,11 @@ async function getProductById(client, productId) {
         p.price,
         p.is_active,
         COALESCE(NULLIF(p.category, ''), c.name) AS category_name,
+        pc.name AS parent_category_name,
         COALESCE(NULLIF(c.printer_route, ''), 'MUTFAK') AS printer_route
       FROM products p
       LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN categories pc ON pc.id = c.parent_category_id
       WHERE p.id = $1
     `,
     [productId]
@@ -393,6 +404,26 @@ async function createOrAppendOrder({ tableId, items, userId }) {
       orderId = orderRow.id;
     }
 
+    const existingPlayStationItems = await client.query(
+      `
+        SELECT oi.product_name_snapshot AS name,
+               c.name AS category_name,
+               pc.name AS parent_category_name
+        FROM order_items oi
+        JOIN products p ON p.id = oi.product_id
+        JOIN categories c ON c.id = p.category_id
+        LEFT JOIN categories pc ON pc.id = c.parent_category_id
+        WHERE oi.order_id = $1
+          AND oi.item_status <> 'VOID'
+      `,
+      [orderId]
+    );
+    const selectedPlayStationDurations = new Set(
+      existingPlayStationItems.rows
+        .map((item) => getPlayStationSessionHours(item))
+        .filter((hours) => hours != null)
+    );
+
     for (const line of items) {
       const productId = line.product_id;
       const quantity = Number(line.quantity);
@@ -410,6 +441,21 @@ async function createOrAppendOrder({ tableId, items, userId }) {
         err.statusCode = 404;
         throw err;
       }
+
+      const selectedHours = getPlayStationSessionHours(product);
+      if (selectedHours != null && (
+          selectedPlayStationDurations.size > 1 ||
+          (selectedPlayStationDurations.size > 0 &&
+            !selectedPlayStationDurations.has(selectedHours))
+        )) {
+        const currentHours = [...selectedPlayStationDurations][0];
+        const err = new Error(
+          `Bu masada ${currentHours} saatlik PlayStation seçeneği var. Uzatmak için aynı ürünü tekrar ekleyin veya önce mevcut seçimi kaldırın.`
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+      if (selectedHours != null) selectedPlayStationDurations.add(selectedHours);
 
       const providedPrice = (line.unit_price !== undefined && line.unit_price !== null)
         ? Number(line.unit_price)

@@ -102,6 +102,23 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
         items.add(DropdownMenuItem<int>(value: child.id, child: Text("  ↳ ${child.name}", style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w500))));
       }
     }
+    final includedIds = items.map((item) => item.value).toSet();
+    for (final category in _categories) {
+      if (includedIds.contains(category.id)) continue;
+      items.add(
+        DropdownMenuItem<int>(
+          value: category.id,
+          child: Text(
+            "↳ ${category.name}",
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF0F172A),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      );
+    }
     return items;
   }
 
@@ -241,6 +258,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                           );
                           if (!mounted || !ctx.mounted) return;
                           Navigator.of(ctx).pop();
+                          await _refreshCategories();
                           await _refreshProducts();
                           if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -474,6 +492,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                           );
                           if (!mounted || !ctx.mounted) return;
                           Navigator.of(ctx).pop();
+                          await _refreshCategories();
                           await _refreshProducts();
                           if (!mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -553,7 +572,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                             .length;
                         final categorySummary = isSubcategory
                             ? "Alt kategori${parentCategory == null ? "" : " · ${parentCategory.name}"} · ${category.activeProductCount} aktif ürün"
-                            : "${category.activeProductCount} aktif ürün · $childCategoryCount alt kategori";
+                            : "${category.activeProductCount} aktif ürün (alt kategoriler dahil) · $childCategoryCount alt kategori";
                         return ListTile(
                           contentPadding: EdgeInsets.only(
                             left: isSubcategory ? 24 : 4,
@@ -667,6 +686,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
 
     try {
       final message = await AdminMenuService.deleteProduct(product.id);
+      await _refreshCategories();
       await _refreshProducts();
       if (!mounted) return;
       ScaffoldMessenger.of(

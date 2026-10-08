@@ -18,10 +18,10 @@ async function listActiveProductsForWaiter() {
       p.price,
       p.vat_rate,
       c.id AS category_id,
-      COALESCE(NULLIF(p.category, ''), c.name) AS category_name,
+      c.name AS category_name,
       c.image_path AS category_image_path,
-      c.parent_category_id,
-      pc.name AS parent_category_name,
+      CASE WHEN pc.is_active THEN c.parent_category_id ELSE NULL END AS parent_category_id,
+      CASE WHEN pc.is_active THEN pc.name ELSE NULL END AS parent_category_name,
       COALESCE(ps.total_qty, 0) AS sales_qty
     FROM products p
     JOIN categories c ON c.id = p.category_id
@@ -36,9 +36,40 @@ async function listActiveProductsForWaiter() {
   return rows;
 }
 
+async function listActiveCategoriesForWaiter() {
+  const { rows } = await db.query(
+    `
+      SELECT
+        c.id,
+        c.name,
+        c.sort_order,
+        CASE WHEN pc.is_active THEN c.parent_category_id ELSE NULL END AS parent_category_id,
+        CASE WHEN pc.is_active THEN pc.name ELSE NULL END AS parent_category_name
+      FROM categories c
+      LEFT JOIN categories pc ON pc.id = c.parent_category_id
+      WHERE c.is_active = TRUE
+      ORDER BY
+        COALESCE(pc.sort_order, c.sort_order) ASC NULLS LAST,
+        CASE WHEN pc.is_active THEN pc.sort_order ELSE c.sort_order END ASC NULLS LAST,
+        c.name ASC
+    `
+  );
+  return rows;
+}
+
 async function listCategoriesForAdmin() {
   const { rows } = await db.query(
     `
+      WITH RECURSIVE category_tree AS (
+        SELECT id AS ancestor_id, id AS descendant_id
+        FROM categories
+        WHERE is_active = TRUE
+        UNION
+        SELECT tree.ancestor_id, child.id
+        FROM category_tree tree
+        JOIN categories child ON child.parent_category_id = tree.descendant_id
+        WHERE child.is_active = TRUE
+      )
       SELECT
         c.id,
         c.name,
@@ -47,20 +78,15 @@ async function listCategoriesForAdmin() {
         c.is_active,
         c.image_path,
         c.parent_category_id,
-        (
-          SELECT COUNT(*)::int
-          FROM products p
-          JOIN categories product_category ON product_category.id = p.category_id
-          WHERE p.is_active = TRUE
-            AND product_category.is_active = TRUE
-            AND (
-              product_category.id = c.id
-              OR product_category.parent_category_id = c.id
-            )
-        ) AS active_product_count
+        COUNT(DISTINCT p.id)::int AS active_product_count
       FROM categories c
-      WHERE is_active = TRUE
-      ORDER BY sort_order ASC NULLS LAST, name ASC;
+      LEFT JOIN category_tree tree ON tree.ancestor_id = c.id
+      LEFT JOIN products p
+        ON p.category_id = tree.descendant_id
+       AND p.is_active = TRUE
+      WHERE c.is_active = TRUE
+      GROUP BY c.id
+      ORDER BY c.sort_order ASC NULLS LAST, c.name ASC;
     `
   );
   return rows;
@@ -70,13 +96,23 @@ async function listProductsForAdmin({ search = "", categoryId = null }) {
   const normalizedSearch = String(search || "").trim();
   const { rows } = await db.query(
     `
+      WITH RECURSIVE selected_category_tree AS (
+        SELECT id
+        FROM categories
+        WHERE id = $2::bigint
+        UNION
+        SELECT child.id
+        FROM categories child
+        JOIN selected_category_tree parent ON child.parent_category_id = parent.id
+        WHERE child.is_active = TRUE
+      )
       SELECT
         p.id,
         p.name,
         p.price,
         p.is_active,
         p.category_id,
-        COALESCE(NULLIF(p.category, ''), c.name) AS category_name,
+        c.name AS category_name,
         p.updated_at
       FROM products p
       LEFT JOIN categories c ON c.id = p.category_id
@@ -87,13 +123,7 @@ async function listProductsForAdmin({ search = "", categoryId = null }) {
         ($1 = '' OR p.name ILIKE '%' || $1 || '%')
         AND (
           $2::bigint IS NULL
-          OR p.category_id = $2
-          OR EXISTS (
-            SELECT 1
-            FROM categories child
-            WHERE child.id = p.category_id
-              AND child.parent_category_id = $2
-          )
+          OR p.category_id IN (SELECT id FROM selected_category_tree)
         )
       ORDER BY c.sort_order ASC NULLS LAST, p.name ASC;
     `,
@@ -126,15 +156,6 @@ async function createCategory({
       error.code = "INVALID_PARENT_CATEGORY";
       throw error;
     }
-    const { rows: sameCategory } = await db.query(
-      `SELECT id FROM categories WHERE UPPER(name) = UPPER($1) AND id = $2 LIMIT 1;`,
-      [normalizedName, parentCategoryId]
-    );
-    if (sameCategory.length) {
-      const error = new Error("Kategori kendisinin alt kategorisi olamaz.");
-      error.code = "INVALID_PARENT_CATEGORY";
-      throw error;
-    }
   }
 
   const { rows: existingRows } = await db.query(
@@ -148,21 +169,35 @@ async function createCategory({
   );
 
   if (existingRows.length) {
+    const { rows: existingCategoryRows } = await db.query(
+      `SELECT id, parent_category_id, is_active FROM categories WHERE id = $1 LIMIT 1;`,
+      [existingRows[0].id]
+    );
+    const existing = existingCategoryRows[0];
+    const existingParentId = existing?.parent_category_id == null
+      ? null
+      : Number(existing.parent_category_id);
+    if (!existing || existingParentId !== parentCategoryId) {
+      const error = new Error("Bu isimde kategori başka bir yerde zaten kullanılıyor.");
+      error.code = "CATEGORY_NAME_EXISTS";
+      throw error;
+    }
+    if (existing.is_active) {
+      const error = new Error("Bu kategori zaten mevcut.");
+      error.code = "CATEGORY_NAME_EXISTS";
+      throw error;
+    }
+
     const { rows } = await db.query(
       `
         UPDATE categories
         SET
-          name = $2,
-          printer_route = $3,
-          image_path = $4,
           is_active = TRUE,
-          sort_order = COALESCE($5, sort_order),
-          parent_category_id = $6,
           updated_at = NOW()
         WHERE id = $1
         RETURNING id, name, printer_route, sort_order, is_active, image_path, parent_category_id;
       `,
-      [existingRows[0].id, normalizedName, normalizedRoute, normalizedImagePath, normalizedSortOrder, parentCategoryId]
+      [existingRows[0].id]
     );
     return rows[0] || null;
   }
@@ -311,7 +346,7 @@ async function deleteCategory({ categoryId }) {
   // the category, its direct subcategories, and products in those categories.
   const { rows } = await db.query(
     `
-      WITH target_category AS (
+      WITH RECURSIVE target_category AS (
         SELECT id
         FROM categories
         WHERE id = $1 AND is_active = TRUE
@@ -320,7 +355,7 @@ async function deleteCategory({ categoryId }) {
         UNION
         SELECT c.id
         FROM categories c
-        JOIN target_category parent ON c.parent_category_id = parent.id
+        JOIN affected_categories parent ON c.parent_category_id = parent.id
       ), deactivated_products AS (
         UPDATE products
         SET is_active = FALSE, updated_at = NOW()
@@ -352,6 +387,7 @@ async function deleteCategory({ categoryId }) {
 
 module.exports = {
   listActiveProductsForWaiter,
+  listActiveCategoriesForWaiter,
   listCategoriesForAdmin,
   listProductsForAdmin,
   createCategory,
