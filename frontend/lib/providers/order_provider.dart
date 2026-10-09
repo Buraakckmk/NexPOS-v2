@@ -70,7 +70,8 @@ List<Map<String, dynamic>> _extractProductRows(dynamic payload) {
 
 List<Map<String, dynamic>> _extractCategoryRows(dynamic payload) {
   if (payload is! Map) return const [];
-  final raw = payload["categories"] ??
+  final raw =
+      payload["categories"] ??
       (payload["data"] is Map ? payload["data"]["categories"] : null);
   if (raw is! List) return const [];
   return raw
@@ -143,6 +144,55 @@ List<Map<String, dynamic>> _extractActiveOrderItems(dynamic payload) {
   return const <Map<String, dynamic>>[];
 }
 
+MenuProduct _preferProductRecord(MenuProduct current, MenuProduct incoming) {
+  int score(MenuProduct product) {
+    var points = 0;
+    if (product.categoryName.trim().isNotEmpty &&
+        product.categoryName != "DIGER") {
+      points += 4;
+    }
+    if (product.parentCategoryName != null &&
+        product.parentCategoryName!.trim().isNotEmpty) {
+      points += 2;
+    }
+    if (product.categoryImagePath.trim().isNotEmpty) {
+      points += 1;
+    }
+    return points;
+  }
+
+  return score(incoming) > score(current) ? incoming : current;
+}
+
+String _productDedupKey(MenuProduct product) {
+  final normalizedName = product.name.trim().toLowerCase();
+  final normalizedPrice = product.price.toStringAsFixed(2);
+  return "$normalizedName|$normalizedPrice";
+}
+
+List<MenuProduct> deduplicateProducts(Iterable<MenuProduct> products) {
+  final byId = <int, MenuProduct>{};
+  final byFallbackKey = <String, MenuProduct>{};
+
+  for (final product in products) {
+    if (product.id > 0) {
+      final current = byId[product.id];
+      byId[product.id] = current == null
+          ? product
+          : _preferProductRecord(current, product);
+      continue;
+    }
+
+    final key = _productDedupKey(product);
+    final current = byFallbackKey[key];
+    byFallbackKey[key] = current == null
+        ? product
+        : _preferProductRecord(current, product);
+  }
+
+  return [...byId.values, ...byFallbackKey.values];
+}
+
 class MenuProduct {
   final int id;
   final String name;
@@ -173,7 +223,8 @@ class MenuProduct {
   /// otherwise returns categoryName.
   String get topLevelCategory => parentCategoryName ?? categoryName;
 
-  bool get hasParentCategory => parentCategoryId != null && parentCategoryId! > 0;
+  bool get hasParentCategory =>
+      parentCategoryId != null && parentCategoryId! > 0;
 
   factory MenuProduct.fromJson(Map<String, dynamic> json) {
     final id = _safeInt(
@@ -219,17 +270,13 @@ class MenuProduct {
         "imagePath",
       ]),
     );
-    final rawParentId = _pickFirst(
-      json,
-      const ["parent_category_id", "parentCategoryId"],
-    );
-    final parentCategoryId =
-        rawParentId != null ? _safeInt(rawParentId) : null;
+    final rawParentId = _pickFirst(json, const [
+      "parent_category_id",
+      "parentCategoryId",
+    ]);
+    final parentCategoryId = rawParentId != null ? _safeInt(rawParentId) : null;
     final parentCategoryName = _normalizedText(
-      _pickFirst(
-        json,
-        const ["parent_category_name", "parentCategoryName"],
-      ),
+      _pickFirst(json, const ["parent_category_name", "parentCategoryName"]),
     );
 
     return MenuProduct(
@@ -243,8 +290,9 @@ class MenuProduct {
       parentCategoryId: (parentCategoryId != null && parentCategoryId > 0)
           ? parentCategoryId
           : null,
-      parentCategoryName:
-          parentCategoryName.isNotEmpty ? parentCategoryName : null,
+      parentCategoryName: parentCategoryName.isNotEmpty
+          ? parentCategoryName
+          : null,
     );
   }
 }
@@ -461,6 +509,7 @@ class OrderProvider extends ChangeNotifier {
   int _guestCount = 1;
   String _tableNote = "";
   String _selectedCategory = "";
+  String? _selectedParentCategory;
   String _searchQuery = "";
   double _totalPaid = 0;
   double _amountPaymentPaid = 0;
@@ -510,11 +559,22 @@ class OrderProvider extends ChangeNotifier {
   /// Returns the sub-category names that are direct children of [parentCategoryName].
   List<String> subCategoriesOf(String parentCategoryName) {
     final normParent = _normalizeCategory(parentCategoryName);
+    int? parentId;
+    for (final category in _menuCategories) {
+      if (category.parentCategoryId == null &&
+          _normalizeCategory(category.name) == normParent) {
+        parentId = category.id;
+        break;
+      }
+    }
     if (_menuCategories.isNotEmpty) {
       return _menuCategories
-          .where((category) =>
-              category.parentCategoryName != null &&
-              _normalizeCategory(category.parentCategoryName!) == normParent)
+          .where(
+            (category) =>
+                category.parentCategoryName != null &&
+                (parentId == null || category.parentCategoryId == parentId) &&
+                _normalizeCategory(category.parentCategoryName!) == normParent,
+          )
           .map((category) => category.name)
           .toList();
     }
@@ -580,7 +640,6 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
-
   List<MenuProduct> get filteredProducts {
     final query = _searchQuery.trim().toLowerCase();
     final selectedCategoryNorm = _normalizeCategory(_selectedCategory);
@@ -599,10 +658,23 @@ class OrderProvider extends ChangeNotifier {
       final directMatch =
           _normalizeCategory(p.categoryName) == selectedCategoryNorm;
       // Case B: the selected category is the parent of this product's category
-      final parentMatch = p.parentCategoryName != null &&
+      final parentMatch =
+          p.parentCategoryName != null &&
           _normalizeCategory(p.parentCategoryName!) == selectedCategoryNorm;
 
-      if (!directMatch && !parentMatch) return false;
+      final selectedParentNorm = _selectedParentCategory == null
+          ? null
+          : _normalizeCategory(_selectedParentCategory!);
+      final scopedChildMatch =
+          selectedParentNorm != null &&
+          directMatch &&
+          p.parentCategoryName != null &&
+          _normalizeCategory(p.parentCategoryName!) == selectedParentNorm;
+      if (_selectedParentCategory != null
+          ? !scopedChildMatch
+          : !directMatch && !parentMatch) {
+        return false;
+      }
       if (query.isEmpty) return true;
       return p.name.toLowerCase().contains(query);
     }).toList();
@@ -640,7 +712,8 @@ class OrderProvider extends ChangeNotifier {
               (existingQty * (_existingPrices[id] ?? product.price));
 
           // ── PLAYSTATION SINIRSIZ LOGIC ──
-          if (product.name.trim().toLowerCase() == "sınırsız" && _activeOrderCreatedAt != null) {
+          if (product.name.trim().toLowerCase() == "sınırsız" &&
+              _activeOrderCreatedAt != null) {
             final diff = DateTime.now().difference(_activeOrderCreatedAt!);
             final hours = (diff.inMinutes / 60.0); // dakika başı orantılı artış
             resolvedPrice = (hours * 200.0).roundToDouble();
@@ -803,14 +876,12 @@ class OrderProvider extends ChangeNotifier {
     final selectedHours = _playStationSessionHours(product.name);
     if (product.topLevelCategory.trim().toUpperCase() == "PLAYSTATION" &&
         selectedHours != null) {
-      final activeProductIds = <int>{..._existingItems.keys, ..._cart.keys};
-      final productNames = <int, String>{
-        for (final item in _products) item.id: item.name,
-      };
-      for (final activeProductId in activeProductIds) {
-        final activeName = _existingNames[activeProductId] ??
-            productNames[activeProductId] ?? "";
-        final activeHours = _playStationSessionHours(activeName);
+      for (final line in cartLines) {
+        if (line.product.topLevelCategory.trim().toUpperCase() !=
+            "PLAYSTATION") {
+          continue;
+        }
+        final activeHours = _playStationSessionHours(line.product.name);
         if (activeHours != null && activeHours != selectedHours) {
           _errorMessage =
               "Bu masada $activeHours saat seçeneği zaten var. Uzatmak için aynı $activeHours saatlik ürünü tekrar ekleyin ya da mevcut seçimi kaldırıp $selectedHours saat seçin.";
@@ -861,7 +932,7 @@ class OrderProvider extends ChangeNotifier {
 
   int? _playStationSessionHours(String productName) {
     final match = RegExp(
-      r'PS[45]\b.*?([1-9]\d*)\s*saat\b',
+      r'([1-9]\d*)\s*saat\b',
       caseSensitive: false,
     ).firstMatch(productName);
     return match == null ? null : int.tryParse(match.group(1) ?? "");
@@ -972,10 +1043,11 @@ class OrderProvider extends ChangeNotifier {
       try {
         final cachedProducts = await localDb.getProducts();
         if (cachedProducts.isNotEmpty) {
-          final parsedProducts = cachedProducts
-              .map(MenuProduct.fromJson)
-              .where((p) => p.id > 0 && p.name.trim().isNotEmpty)
-              .toList();
+          final parsedProducts = deduplicateProducts(
+            cachedProducts
+                .map(MenuProduct.fromJson)
+                .where((p) => p.id > 0 && p.name.trim().isNotEmpty),
+          );
 
           _products
             ..clear()
@@ -996,13 +1068,18 @@ class OrderProvider extends ChangeNotifier {
       final rawCategories = _extractCategoryRows(results[0].data);
       _menuCategories
         ..clear()
-        ..addAll(rawCategories.map(MenuCategory.fromJson).where((c) => c.id > 0 && c.name.isNotEmpty));
+        ..addAll(
+          rawCategories
+              .map(MenuCategory.fromJson)
+              .where((c) => c.id > 0 && c.name.isNotEmpty),
+        );
 
       if (rawProducts.isNotEmpty) {
-        final parsedProducts = rawProducts
-            .map(MenuProduct.fromJson)
-            .where((p) => p.id > 0 && p.name.trim().isNotEmpty)
-            .toList();
+        final parsedProducts = deduplicateProducts(
+          rawProducts
+              .map(MenuProduct.fromJson)
+              .where((p) => p.id > 0 && p.name.trim().isNotEmpty),
+        );
 
         _products
           ..clear()
@@ -1094,7 +1171,9 @@ class OrderProvider extends ChangeNotifier {
     _discountTotal = _safeDouble(activeOrder?["discount_total"]);
 
     if (activeOrder != null && activeOrder["opened_at"] != null) {
-      _activeOrderCreatedAt = DateTime.tryParse(activeOrder["opened_at"].toString())?.toLocal();
+      _activeOrderCreatedAt = DateTime.tryParse(
+        activeOrder["opened_at"].toString(),
+      )?.toLocal();
     } else {
       _activeOrderCreatedAt = null;
     }
@@ -1289,9 +1368,13 @@ class OrderProvider extends ChangeNotifier {
 
   double pendingQuantityOf(MenuProduct product) => _cart[product.id] ?? 0;
 
-  void setSelectedCategory(String category) {
-    if (_selectedCategory == category) return;
+  void setSelectedCategory(String category, {String? parentCategory}) {
+    if (_selectedCategory == category &&
+        _selectedParentCategory == parentCategory) {
+      return;
+    }
     _selectedCategory = category;
+    _selectedParentCategory = parentCategory;
     notifyListeners();
   }
 

@@ -70,6 +70,29 @@ async function ensureOrderSchema() {
       ADD COLUMN IF NOT EXISTS table_note TEXT,
       ADD COLUMN IF NOT EXISTS payment_lock_user_id INT,
       ADD COLUMN IF NOT EXISTS payment_lock_at TIMESTAMPTZ;
+
+      -- Bring older databases up to the payment methods supported by the app.
+      ALTER TABLE payments
+      DROP CONSTRAINT IF EXISTS payments_payment_method_check;
+
+      UPDATE payments
+      SET payment_method = 'OTHER'
+      WHERE payment_method = 'CUSTOMER';
+
+      ALTER TABLE payments
+      ADD CONSTRAINT payments_payment_method_check
+      CHECK (payment_method IN ('CASH', 'CARD', 'MEAL_CARD', 'MIXED', 'OTHER'));
+
+      ALTER TABLE orders
+      DROP CONSTRAINT IF EXISTS orders_payment_method_check;
+
+      UPDATE orders
+      SET payment_method = 'OTHER'
+      WHERE payment_method = 'CUSTOMER';
+
+      ALTER TABLE orders
+      ADD CONSTRAINT orders_payment_method_check
+      CHECK (payment_method IN ('CASH', 'CARD', 'MEAL_CARD', 'MIXED', 'OTHER'));
     `);
   }
 
@@ -86,7 +109,7 @@ function getPlayStationSessionHours(product) {
     .some((name) => String(name || "").trim().toUpperCase() === "PLAYSTATION");
   if (!isPlayStation) return null;
 
-  const match = String(product?.name || "").match(/PS[45]\b.*?([1-9]\d*)\s*saat\b/i);
+  const match = String(product?.name || "").match(/([1-9]\d*)\s*saat\b/i);
   return match ? Number(match[1]) : null;
 }
 

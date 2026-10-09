@@ -156,7 +156,7 @@ class PosApp extends StatelessWidget {
       child: MaterialApp(
         navigatorKey: AppFeedbackService.navigatorKey,
         scaffoldMessengerKey: AppFeedbackService.scaffoldMessengerKey,
-        title: "Okeyra Oyun Salonu",
+        title: "NEXPOS",
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
         scrollBehavior: PosScrollBehavior(),

@@ -419,12 +419,6 @@ async function getDailyHistory(req, res) {
         safeEndDate = temp;
       }
 
-      const maxRangeDays = 365;
-      const rangeDays = Math.floor((safeEndDate.getTime() - safeStartDate.getTime()) / 86400000) + 1;
-      const finalStartDate = rangeDays > maxRangeDays
-        ? new Date(safeEndDate.getTime() - (maxRangeDays - 1) * 86400000)
-        : safeStartDate;
-
       const formatLocalDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -471,7 +465,7 @@ async function getDailyHistory(req, res) {
           ORDER BY dr.day DESC
         `,
         [
-          formatLocalDate(finalStartDate),
+          formatLocalDate(safeStartDate),
           formatLocalDate(safeEndDate),
         ]
       );

@@ -1,5 +1,5 @@
 import "package:flutter/material.dart";
-import "package:fl_chart/fl_chart.dart";
+import "package:intl/intl.dart";
 
 import "../services/api_client.dart";
 import "../services/socket_service.dart";
@@ -25,13 +25,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   static const String _adminDeletePin = "2323";
 
   late Future<DailySummary> _summaryFuture;
-  late Future<AdminStats> _statsFuture;
   late Future<List<Expense>> _expensesFuture;
   late Future<List<PaymentTransaction>> _transactionsFuture;
   late Future<List<TableItem>> _customTablesFuture;
   late Future<List<dynamic>> _combinedFuture;
+  late Future<List<DailyHistoryItem>> _dailyHistoryFuture;
 
   late TabController _tabController;
+  late DateTime _historyStartDate;
+  late DateTime _historyEndDate;
   bool _isGeneratingZReport = false;
   bool _isFetchingXReport = false;
 
@@ -39,6 +41,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _historyEndDate = DateUtils.dateOnly(DateTime.now());
+    _historyStartDate = _historyEndDate.subtract(const Duration(days: 29));
     _initFutures();
     _setupSocketListeners();
   }
@@ -66,13 +70,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   void _initFutures() {
     _summaryFuture = _fetchDailySummary();
-    _statsFuture = _fetchStats();
     _expensesFuture = _fetchExpenses();
     _transactionsFuture = _fetchTransactions();
     _customTablesFuture = _fetchCustomTables();
+    _dailyHistoryFuture = _fetchDailyHistory();
     _combinedFuture = Future.wait([
       _summaryFuture,
-      _statsFuture,
       _expensesFuture,
       _transactionsFuture,
       _customTablesFuture,
@@ -85,6 +88,53 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         _initFutures();
       });
     }
+  }
+
+  Future<List<DailyHistoryItem>> _fetchDailyHistory() async {
+    final dateFormat = DateFormat("yyyy-MM-dd");
+    final response = await ApiClient.dio.get(
+      "/admin/daily-history",
+      queryParameters: {
+        "startDate": dateFormat.format(_historyStartDate),
+        "endDate": dateFormat.format(_historyEndDate),
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    final list = data["data"] as List<dynamic>? ?? [];
+    return list
+        .map((item) => DailyHistoryItem.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  void _reloadDailyHistory() {
+    setState(() {
+      _dailyHistoryFuture = _fetchDailyHistory();
+    });
+  }
+
+  Future<void> _selectHistoryDate({required bool isStartDate}) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: isStartDate ? _historyStartDate : _historyEndDate,
+      firstDate: DateTime(2020),
+      lastDate: DateUtils.dateOnly(DateTime.now()),
+    );
+    if (date == null || !mounted) return;
+
+    setState(() {
+      if (isStartDate) {
+        _historyStartDate = DateUtils.dateOnly(date);
+        if (_historyStartDate.isAfter(_historyEndDate)) {
+          _historyEndDate = _historyStartDate;
+        }
+      } else {
+        _historyEndDate = DateUtils.dateOnly(date);
+        if (_historyEndDate.isBefore(_historyStartDate)) {
+          _historyStartDate = _historyEndDate;
+        }
+      }
+      _dailyHistoryFuture = _fetchDailyHistory();
+    });
   }
 
   Future<void> _returnToTables() async {
@@ -148,21 +198,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
-  Future<AdminStats> _fetchStats() async {
-    try {
-      final response = await ApiClient.dio.get("/admin/stats");
-      final data = response.data as Map<String, dynamic>;
-      final statsData = data["data"] as Map<String, dynamic>?;
-      if (statsData == null) throw Exception("Veri bulunamadı");
-      return AdminStats.fromJson(statsData);
-    } catch (e) {
-      throw Exception("İstatistikler alınamadı: $e");
-    }
-  }
-
   Future<List<Expense>> _fetchExpenses() async {
     try {
-      final response = await ApiClient.dio.get("/admin/expenses?currentPeriodOnly=true");
+      final response = await ApiClient.dio.get(
+        "/admin/expenses?currentPeriodOnly=true",
+      );
       final data = response.data as Map<String, dynamic>;
       final payload = data["data"];
       List<dynamic> list = [];
@@ -646,11 +686,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       }
 
                       final summary = snapshot.data![0] as DailySummary;
-                      final stats = snapshot.data![1] as AdminStats;
-                      final expenses = snapshot.data![2] as List<Expense>;
+                      final expenses = snapshot.data![1] as List<Expense>;
                       final transactions =
-                          snapshot.data![3] as List<PaymentTransaction>;
-                      final customTables = snapshot.data![4] as List<TableItem>;
+                          snapshot.data![2] as List<PaymentTransaction>;
+                      final customTables = snapshot.data![3] as List<TableItem>;
 
                       final totalExpensesSum = expenses.fold<double>(
                         0.0,
@@ -671,41 +710,85 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
                               // ── SEKMELİ GEZİNTİ BARI ─────────────────────
                               Container(
+                                padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFF1E293B,
-                                      ).withValues(alpha: 0.05),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: const Color(0xFFE6EAF0),
+                                  ),
                                 ),
                                 child: TabBar(
                                   controller: _tabController,
-                                  labelColor: const Color(0xFF0F172A),
-                                  unselectedLabelColor: const Color(0xFF64748B),
+                                  isScrollable: true,
+                                  tabAlignment: TabAlignment.start,
+                                  dividerColor: Colors.transparent,
+                                  labelColor: Colors.white,
+                                  unselectedLabelColor: const Color(0xFF667085),
                                   labelStyle: const TextStyle(
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 14,
+                                    fontSize: 13,
                                   ),
-                                  indicatorColor: const Color(0xFF10B981),
-                                  indicatorWeight: 3,
+                                  unselectedLabelStyle: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                  ),
+                                  labelPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  indicatorSize: TabBarIndicatorSize.tab,
+                                  indicator: BoxDecoration(
+                                    color: const Color(0xFF0F9F6E),
+                                    borderRadius: BorderRadius.circular(13),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFF0F9F6E,
+                                        ).withValues(alpha: 0.22),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
                                   tabs: const [
                                     Tab(
-                                      icon: Icon(Icons.bar_chart_rounded),
-                                      text: "Analiz & Grafikler",
+                                      height: 48,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.history_rounded, size: 19),
+                                          SizedBox(width: 9),
+                                          Text("Geçmiş Ciro"),
+                                        ],
+                                      ),
                                     ),
                                     Tab(
-                                      icon: Icon(Icons.receipt_long_rounded),
-                                      text: "Tahsilat & Giderler",
+                                      height: 48,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.receipt_long_rounded,
+                                            size: 19,
+                                          ),
+                                          SizedBox(width: 9),
+                                          Text("Tahsilat & Giderler"),
+                                        ],
+                                      ),
                                     ),
                                     Tab(
-                                      icon: Icon(Icons.grid_view_rounded),
-                                      text: "Hızlı Modüller & Masalar",
+                                      height: 48,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.grid_view_rounded,
+                                            size: 19,
+                                          ),
+                                          SizedBox(width: 9),
+                                          Text("Hızlı Modüller & Masalar"),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -719,8 +802,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                 child: TabBarView(
                                   controller: _tabController,
                                   children: [
-                                    // Sekme 1: Grafikler
-                                    _buildChartsTab(stats),
+                                    // Sekme 1: Geçmiş ciro
+                                    _buildDailyHistoryTab(),
                                     // Sekme 2: İşlem Hareketleri
                                     _buildTransactionsTab(
                                       transactions,
@@ -852,7 +935,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      color: Colors.white,
+                    ),
                     tooltip: "Yenile",
                     onPressed: _refreshData,
                   ),
@@ -1028,24 +1114,451 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
   }
 
-  // ── SEKME 1: ANALİZ & GRAFİKLER ──────────────────────────────────────
-  Widget _buildChartsTab(AdminStats stats) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 3,
-          child: Column(
+  Widget _buildDailyHistoryTab() {
+    final dateFormat = DateFormat("dd.MM.yyyy");
+    const weekdays = [
+      "Pazartesi",
+      "Salı",
+      "Çarşamba",
+      "Perşembe",
+      "Cuma",
+      "Cumartesi",
+      "Pazar",
+    ];
+
+    return FutureBuilder<List<DailyHistoryItem>>(
+      future: _dailyHistoryFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF10B981)),
+          );
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Geçmiş ciro verileri alınamadı.",
+                  style: TextStyle(color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: _reloadDailyHistory,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text("Tekrar Dene"),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final history = snapshot.data ?? [];
+        final totalRevenue = history.fold<double>(
+          0,
+          (sum, item) => sum + item.totalRevenue,
+        );
+        final cashTotal = history.fold<double>(
+          0,
+          (sum, item) => sum + item.cashTotal,
+        );
+        final cardTotal = history.fold<double>(
+          0,
+          (sum, item) => sum + item.cardTotal,
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Ciro Geçmişi",
+                        style: TextStyle(
+                          color: Color(0xFF162033),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        "Tarih aralığını seçerek günlük tahsilatları inceleyin",
+                        style: TextStyle(
+                          color: Color(0xFF667085),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton.filledTonal(
+                  onPressed: _reloadDailyHistory,
+                  tooltip: "Yenile",
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _buildHistoryDateSelector(
+                  label: "BAŞLANGIÇ",
+                  value: dateFormat.format(_historyStartDate),
+                  icon: Icons.calendar_month_rounded,
+                  onTap: () => _selectHistoryDate(isStartDate: true),
+                ),
+                _buildHistoryDateSelector(
+                  label: "BİTİŞ",
+                  value: dateFormat.format(_historyEndDate),
+                  icon: Icons.event_rounded,
+                  onTap: () => _selectHistoryDate(isStartDate: false),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final cardWidth = constraints.maxWidth >= 760
+                    ? (constraints.maxWidth - 24) / 3
+                    : (constraints.maxWidth - 10) / 2;
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    SizedBox(
+                      width: cardWidth,
+                      child: _buildHistoryMetricCard(
+                        "Toplam Ciro",
+                        totalRevenue,
+                        Icons.account_balance_wallet_rounded,
+                        const Color(0xFF059669),
+                        const Color(0xFFECFDF5),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _buildHistoryMetricCard(
+                        "Nakit Tahsilat",
+                        cashTotal,
+                        Icons.payments_rounded,
+                        const Color(0xFF2563EB),
+                        const Color(0xFFEFF6FF),
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _buildHistoryMetricCard(
+                        "Kart Tahsilat",
+                        cardTotal,
+                        Icons.credit_card_rounded,
+                        const Color(0xFF7C3AED),
+                        const Color(0xFFF5F3FF),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    "Günlük döküm",
+                    style: TextStyle(
+                      color: Color(0xFF162033),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Text(
+                  "${history.length} gün",
+                  style: const TextStyle(
+                    color: Color(0xFF667085),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: history.isEmpty
+                  ? Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE6EAF0)),
+                      ),
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.query_stats_rounded,
+                            size: 38,
+                            color: Color(0xFF98A2B3),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            "Bu tarih aralığında ciro kaydı yok",
+                            style: TextStyle(
+                              color: Color(0xFF667085),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE6EAF0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(
+                              0xFF182230,
+                            ).withValues(alpha: 0.04),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        itemCount: history.length,
+                        separatorBuilder: (_, _) => const Divider(
+                          height: 1,
+                          indent: 68,
+                          endIndent: 16,
+                          color: Color(0xFFF1F4F8),
+                        ),
+                        itemBuilder: (context, index) {
+                          final item = history[index];
+                          final parsedDate = DateTime.tryParse(item.date);
+                          final formattedDate = parsedDate == null
+                              ? item.date
+                              : dateFormat.format(parsedDate);
+                          final weekday = parsedDate == null
+                              ? ""
+                              : weekdays[parsedDate.weekday - 1];
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 7,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 42,
+                                  height: 42,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFECFDF5),
+                                    borderRadius: BorderRadius.circular(13),
+                                  ),
+                                  child: const Icon(
+                                    Icons.calendar_today_rounded,
+                                    color: Color(0xFF059669),
+                                    size: 19,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        formattedDate,
+                                        style: const TextStyle(
+                                          color: Color(0xFF162033),
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        "$weekday  ·  Nakit ${item.cashTotal.toStringAsFixed(2)} ₺  ·  Kart ${item.cardTotal.toStringAsFixed(2)} ₺",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF667085),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "${item.totalRevenue.toStringAsFixed(2)} ₺",
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(
+                                    color: Color(0xFF059669),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHistoryDateSelector({
+    required String label,
+    required String value,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE6EAF0)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(child: _buildWeeklyRevenueChart(stats.weeklyRevenue)),
-              const SizedBox(height: 16),
-              Expanded(child: _buildTopProductsChart(stats.topProducts)),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: const Color(0xFF356AE6)),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Color(0xFF667085),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.7,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: Color(0xFF162033),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: Color(0xFF667085),
+              ),
             ],
           ),
         ),
-        const SizedBox(width: 16),
-        Expanded(flex: 2, child: _buildCategorySalesChart(stats.categorySales)),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryMetricCard(
+    String label,
+    double amount,
+    IconData icon,
+    Color accent,
+    Color iconBackground,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE6EAF0)),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: iconBackground,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: accent, size: 20),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF667085),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "${amount.toStringAsFixed(2)} ₺",
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1200,216 +1713,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
         ),
       ],
-    );
-  }
-
-  // ── GRAFİK BİLEŞENLERİ ──────────────────────────────────────────────
-  Widget _buildWeeklyRevenueChart(List<WeeklyRevenue> data) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Haftalık Ciro Trendi",
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: data.isEmpty
-                ? const Center(
-                    child: Text(
-                      "Veri yok",
-                      style: TextStyle(color: Color(0xFF64748B)),
-                    ),
-                  )
-                : BarChart(
-                    BarChartData(
-                      borderData: FlBorderData(show: false),
-                      titlesData: FlTitlesData(
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (val, meta) {
-                              final index = val.toInt();
-                              if (index >= 0 && index < data.length) {
-                                return Text(
-                                  data[index].dayName,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F172A),
-                                  ),
-                                );
-                              }
-                              return const SizedBox();
-                            },
-                          ),
-                        ),
-                      ),
-                      barGroups: data.asMap().entries.map((e) {
-                        return BarChartGroupData(
-                          x: e.key,
-                          barRods: [
-                            BarChartRodData(
-                              toY: e.value.revenue,
-                              color: const Color(0xFF10B981),
-                              width: 16,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategorySalesChart(List<CategorySales> data) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Kategori Dağılımı",
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: data.isEmpty
-                ? const Center(
-                    child: Text(
-                      "Veri yok",
-                      style: TextStyle(color: Color(0xFF64748B)),
-                    ),
-                  )
-                : PieChart(
-                    PieChartData(
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 40,
-                      sections: data.asMap().entries.map((e) {
-                        final colors = [
-                          const Color(0xFF10B981),
-                          const Color(0xFF3B82F6),
-                          const Color(0xFF8B5CF6),
-                          const Color(0xFFF59E0B),
-                          const Color(0xFFEF4444),
-                        ];
-                        return PieChartSectionData(
-                          color: colors[e.key % colors.length],
-                          value: e.value.revenue,
-                          title:
-                              "${e.value.name}\n${e.value.revenue.toStringAsFixed(0)}₺",
-                          radius: 55,
-                          titleStyle: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopProductsChart(List<TopProduct> data) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "En Çok Satılan Ürünler",
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: data.isEmpty
-                ? const Center(
-                    child: Text(
-                      "Veri yok",
-                      style: TextStyle(color: Color(0xFF64748B)),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: data.length,
-                    itemBuilder: (context, index) {
-                      final item = data[index];
-                      return ListTile(
-                        dense: true,
-                        leading: CircleAvatar(
-                          radius: 14,
-                          backgroundColor: const Color(0xFFE0F2FE),
-                          child: Text(
-                            "${index + 1}",
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0369A1),
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          item.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        trailing: Text(
-                          "${item.quantity.toStringAsFixed(0)} Adet",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
     );
   }
 

@@ -126,6 +126,13 @@ router.post(
 	asyncHandler(productController.createCategoryAdmin)
 );
 
+router.patch(
+	"/menu/categories/:categoryId",
+	authenticate,
+	authorize(ROLES.ADMIN),
+	asyncHandler(productController.moveCategoryAdmin)
+);
+
 router.delete(
 	"/menu/categories/:categoryId",
 	authenticate,

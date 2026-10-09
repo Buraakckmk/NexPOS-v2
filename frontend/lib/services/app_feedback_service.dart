@@ -143,9 +143,9 @@ class AppFeedbackService {
                                 trimmed,
                                 style: const TextStyle(
                                   color: Color(0xFF0F172A),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.2,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.25,
                                   letterSpacing: -0.2,
                                 ),
                                 maxLines: 2,

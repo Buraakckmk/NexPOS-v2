@@ -197,7 +197,12 @@ class AppTheme {
       ),
       snackBarTheme: const SnackBarThemeData(
         backgroundColor: Color(0xFF182230),
-        contentTextStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        contentTextStyle: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 16,
+          height: 1.3,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: compactRadius),
       ),

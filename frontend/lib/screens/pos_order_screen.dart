@@ -2150,29 +2150,36 @@ class _PosOrderViewState extends State<_PosOrderView> {
           order.setSearchQuery("");
           order.setSelectedCategory(cat.label);
         },
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(30),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            gradient: isSelected
+                ? const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: isSelected ? null : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(30),
             border: Border.all(
               color: isSelected
-                  ? const Color(0xFF10B981).withValues(alpha: 0.3)
+                  ? Colors.transparent
                   : const Color(0xFFE2E8F0),
             ),
           ),
           child: Text(
             cat.label,
             style: TextStyle(
-              fontSize: 11,
-              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              fontSize: 14,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
               color: isSelected
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFF71717A),
+                  ? Colors.white
+                  : const Color(0xFF334155),
+              letterSpacing: 0.2,
             ),
           ),
         ),
@@ -2180,26 +2187,21 @@ class _PosOrderViewState extends State<_PosOrderView> {
     }
 
     return Container(
-      color: const Color(0xFFFFFFFF),
+      color: const Color(0xFFF3F4F6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: isDesktop
-          ? Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: categories.map(buildCategoryChip).toList(),
-              ),
+          ? Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: categories.map(buildCategoryChip).toList(),
             )
           : SizedBox(
-              height: 44,
+              height: 52,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
                 itemCount: categories.length,
-                separatorBuilder: (_, index) => const SizedBox(width: 6),
+                separatorBuilder: (_, index) => const SizedBox(width: 10),
                 itemBuilder: (context, i) => buildCategoryChip(categories[i]),
               ),
             ),
@@ -2219,7 +2221,10 @@ class _PosOrderViewState extends State<_PosOrderView> {
           final isActivating = !isSelected;
           setState(() => _activeSubCategory = isActivating ? label : null);
           order.setSearchQuery("");
-          order.setSelectedCategory(isActivating ? label : _activeCategory!);
+          order.setSelectedCategory(
+            isActivating ? label : _activeCategory!,
+            parentCategory: isActivating ? _activeCategory : null,
+          );
         },
         borderRadius: BorderRadius.circular(30),
         child: AnimatedContainer(

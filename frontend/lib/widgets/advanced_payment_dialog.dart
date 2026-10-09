@@ -315,6 +315,9 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
       widget.initialDiscountAmount.clamp(0, widget.totalAmount).toDouble(),
     );
     final hasDiscountChanged = (discountAmount - initialDiscount).abs() > 0.009;
+    final isPaymentCompletion =
+        isFullyCollected || isPartialPayment || isZeroBalance;
+    final canCompleteCheckout = isPaymentCompletion || hasDiscountChanged;
 
     if (paymentAmountController.text.trim().isEmpty) {
       paymentAmountController.text = "0.00";
@@ -959,31 +962,25 @@ class _AdvancedPaymentDialogState extends State<AdvancedPaymentDialog> {
                           flex: 3,
                           child: FilledButton(
                             style: FilledButton.styleFrom(
-                              backgroundColor:
-                                  (isFullyCollected ||
-                                      isPartialPayment ||
-                                      isZeroBalance)
+                              backgroundColor: isPaymentCompletion
                                   ? const Color(0xFF10B981)
                                   : const Color(0xFFFFFFFF),
+                              foregroundColor: isPaymentCompletion
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                               disabledBackgroundColor: const Color(0xFFF8FAFC),
+                              disabledForegroundColor: const Color(0xFF64748B),
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                                 side: BorderSide(
-                                  color:
-                                      (isFullyCollected ||
-                                          isPartialPayment ||
-                                          isZeroBalance)
+                                  color: isPaymentCompletion
                                       ? Colors.transparent
                                       : const Color(0xFFE2E8F0),
                                 ),
                               ),
                             ),
-                            onPressed:
-                                (isFullyCollected ||
-                                    isPartialPayment ||
-                                    isZeroBalance ||
-                                    hasDiscountChanged)
+                            onPressed: canCompleteCheckout
                                 ? () {
                                     final finalItems = <TableOrderPreviewItem>[
                                       ...allPaidItemsInThisSession,

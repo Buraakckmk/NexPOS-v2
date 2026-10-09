@@ -99,6 +99,16 @@ class AdminMenuService {
     );
   }
 
+  static Future<void> moveCategory({
+    required int categoryId,
+    int? parentCategoryId,
+  }) async {
+    await ApiClient.dio.patch(
+      "/admin/menu/categories/$categoryId",
+      data: {"parent_category_id": parentCategoryId},
+    );
+  }
+
   static Future<String?> deleteCategory(int categoryId) async {
     final res = await ApiClient.dio.delete(
       "/admin/menu/categories/$categoryId",

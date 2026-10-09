@@ -5,8 +5,10 @@ const db = require("../src/config/db");
 const productService = require("../src/services/product.service");
 
 const originalQuery = db.query;
+const originalConnect = db.pool.connect;
 afterEach(() => {
   db.query = originalQuery;
+  db.pool.connect = originalConnect;
 });
 
 test("admin category list exposes parent ids and counts active child products", async () => {
@@ -22,8 +24,10 @@ test("admin category list exposes parent ids and counts active child products", 
 
   assert.equal(categories[0].parent_category_id, null);
   assert.equal(categories[0].active_product_count, 4);
-  assert.match(queryText, /product_category\.parent_category_id\s*=\s*c\.id/);
-  assert.match(queryText, /product_category\.is_active\s*=\s*TRUE/);
+  assert.match(queryText, /child\.parent_category_id\s*=\s*tree\.descendant_id/);
+  assert.match(queryText, /child\.is_active\s*=\s*TRUE/);
+  assert.match(queryText, /GROUP BY c\.id, parent\.id, parent\.sort_order/);
+  assert.match(queryText, /COALESCE\(parent\.sort_order, c\.sort_order\)/);
 });
 
 test("admin product filtering by a parent category includes its subcategories", async () => {
@@ -42,7 +46,7 @@ test("admin product filtering by a parent category includes its subcategories", 
 
   assert.equal(products.length, 1);
   assert.deepEqual(queryParams, ["lat", 10]);
-  assert.match(queryText, /child\.parent_category_id\s*=\s*\$2/);
+  assert.match(queryText, /JOIN selected_category_tree parent ON child\.parent_category_id\s*=\s*parent\.id/);
 });
 
 test("deleting a category deactivates its children and their active products", async () => {
@@ -85,4 +89,64 @@ test("creating a subcategory rejects an inactive or non-root parent", async () =
     (error) => error.code === "INVALID_PARENT_CATEGORY",
   );
   assert.equal(callCount, 1);
+});
+
+test("moving a category updates its parent inside a transaction", async () => {
+  const calls = [];
+  const client = {
+    async query(queryText, params) {
+      calls.push({ queryText, params });
+      if (queryText.includes("SELECT id, parent_category_id")) {
+        return { rows: [{ id: 12, parent_category_id: 10 }] };
+      }
+      if (queryText.includes("SELECT id FROM categories WHERE id = $1 AND is_active = TRUE AND parent_category_id IS NULL")) {
+        return { rows: [{ id: 20 }] };
+      }
+      if (queryText.includes("SELECT id FROM categories WHERE parent_category_id = $1")) {
+        return { rows: [] };
+      }
+      if (queryText.includes("UPDATE categories")) {
+        return { rows: [{ id: 12, name: "Espresso", parent_category_id: 20 }] };
+      }
+      return { rows: [] };
+    },
+    release() {},
+  };
+  db.pool.connect = async () => client;
+
+  const moved = await productService.moveCategory({
+    categoryId: 12,
+    parentCategoryId: 20,
+  });
+
+  assert.equal(moved.parent_category_id, 20);
+  assert.equal(calls[0].queryText, "BEGIN");
+  assert.equal(calls.at(-1).queryText, "COMMIT");
+});
+
+test("moving a category with children under another category is rejected", async () => {
+  const calls = [];
+  const client = {
+    async query(queryText) {
+      calls.push(queryText);
+      if (queryText.includes("SELECT id, parent_category_id")) {
+        return { rows: [{ id: 12, parent_category_id: null }] };
+      }
+      if (queryText.includes("SELECT id FROM categories WHERE id = $1 AND is_active = TRUE AND parent_category_id IS NULL")) {
+        return { rows: [{ id: 20 }] };
+      }
+      if (queryText.includes("SELECT id FROM categories WHERE parent_category_id = $1")) {
+        return { rows: [{ id: 13 }] };
+      }
+      return { rows: [] };
+    },
+    release() {},
+  };
+  db.pool.connect = async () => client;
+
+  await assert.rejects(
+    productService.moveCategory({ categoryId: 12, parentCategoryId: 20 }),
+    (error) => error.code === "CATEGORY_HAS_SUBCATEGORIES",
+  );
+  assert.equal(calls.at(-1), "ROLLBACK");
 });

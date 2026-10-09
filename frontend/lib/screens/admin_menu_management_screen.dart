@@ -256,8 +256,10 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                             price: price,
                             categoryId: selectedCategoryId!,
                           );
-                          if (!mounted || !ctx.mounted) return;
-                          Navigator.of(ctx).pop();
+                          if (!mounted) return;
+                          if (ctx.mounted) {
+                            Navigator.of(ctx).pop();
+                          }
                           await _refreshCategories();
                           await _refreshProducts();
                           if (!mounted) return;
@@ -289,22 +291,142 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => AlertDialog(
-          title: const Text("Yeni Kategori Ekle"),
-          content: SizedBox(
-            width: 420,
+        builder: (ctx, setModalState) => Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+          backgroundColor: const Color(0xFFF3F5F7),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Container(
+            width: 540,
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F5F7),
+              borderRadius: BorderRadius.circular(28),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 54,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F766E),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.add_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        "Yeni Kategori Ekle",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  "Kategori Adı",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF334155),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _categoryNameController,
                   autofocus: true,
-                  decoration: const InputDecoration(labelText: "Kategori Adı"),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: "Kategori adı girin",
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 18,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF0F766E),
+                        width: 1.6,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF0F766E),
+                        width: 1.6,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF0F766E),
+                        width: 2,
+                      ),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
+                Text(
+                  "Üst Kategori (Opsiyonel)",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF334155),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 DropdownButtonFormField<int?>(
                   initialValue: selectedParentCategoryId,
-                  decoration: const InputDecoration(labelText: "Üst Kategori (Opsiyonel)"),
+                  dropdownColor: Colors.white,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF0F172A),
+                    fontWeight: FontWeight.w800,
+                  ),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 18,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF0F766E),
+                        width: 1.6,
+                      ),
+                    ),
+                  ),
                   items: [
                     const DropdownMenuItem<int?>(
                       value: null,
@@ -321,103 +443,251 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                     setModalState(() => selectedParentCategoryId = val);
                   },
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _isSubmitting
-                            ? null
-                            : () async {
-                                final picked = await _pickCategoryImagePath();
-                                if (picked == null) return;
-                                setModalState(() => selectedImagePath = picked);
-                              },
-                        icon: const Icon(Icons.upload_file_rounded),
-                        label: const Text("Cihazdan Görsel Seç"),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton.icon(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () async {
+                                      final picked = await _pickCategoryImagePath();
+                                      if (picked == null) return;
+                                      setModalState(() => selectedImagePath = picked);
+                                    },
+                              icon: const Icon(Icons.upload_file_rounded, size: 20),
+                              label: const Text(
+                                "Cihazdan Görsel Seç",
+                                style: TextStyle(
+                                  color: Color(0xFF0F172A),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (selectedImagePath.isNotEmpty)
+                            IconButton(
+                              tooltip: "Temizle",
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () => setModalState(() => selectedImagePath = ""),
+                              icon: const Icon(Icons.close_rounded),
+                              color: const Color(0xFF64748B),
+                            ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      tooltip: "Temizle",
+                      const Divider(height: 1),
+                      Container(
+                        height: 160,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.vertical(
+                            bottom: Radius.circular(12),
+                          ),
+                        ),
+                        child: selectedImagePath.isEmpty
+                            ? const Center(
+                                child: Icon(
+                                  Icons.image_outlined,
+                                  size: 42,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                              )
+                            : ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  bottom: Radius.circular(12),
+                                ),
+                                child: _buildImagePreview(selectedImagePath),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
                       onPressed: _isSubmitting
                           ? null
-                          : () => setModalState(() => selectedImagePath = ""),
-                      icon: const Icon(Icons.close_rounded),
+                          : () => Navigator.of(ctx).pop(),
+                      child: const Text(
+                        "İptal",
+                        style: TextStyle(
+                          color: Color(0xFF0F172A),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    FilledButton(
+                      onPressed: _isSubmitting
+                          ? null
+                          : () async {
+                              final name = _categoryNameController.text.trim();
+                              if (name.isEmpty) {
+                                _showError("Kategori adı zorunludur.");
+                                return;
+                              }
+
+                              final navigator = Navigator.of(ctx);
+                              final messenger = ScaffoldMessenger.maybeOf(context);
+
+                              setState(() => _isSubmitting = true);
+                              try {
+                                await AdminMenuService.createCategory(
+                                  name: name,
+                                  imagePath: selectedImagePath,
+                                  parentCategoryId: selectedParentCategoryId,
+                                );
+                                await _refreshCategories();
+                                await _refreshProducts();
+                                if (!mounted) return;
+                                if (navigator.canPop()) {
+                                  navigator.pop();
+                                }
+                                messenger?.showSnackBar(
+                                  const SnackBar(content: Text("Kategori eklendi.")),
+                                );
+                              } catch (e) {
+                                if (!mounted) return;
+                                _showError(
+                                  _humanizeError(e, fallback: "Kategori eklenemedi."),
+                                );
+                              } finally {
+                                if (mounted) setState(() => _isSubmitting = false);
+                              }
+                            },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F766E),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(120, 52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "Kaydet",
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  selectedImagePath.isEmpty
-                      ? "Görsel seçilmedi"
-                      : selectedImagePath,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  Future<bool> _moveCategory(AdminMenuCategory category) async {
+    final hasChildren = _categories.any(
+      (candidate) => candidate.parentCategoryId == category.id,
+    );
+    final canMoveUnderParent = !hasChildren || category.parentCategoryId != null;
+    var selectedParentId = category.parentCategoryId ?? 0;
+
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text("${category.name} kategorisini taşı"),
+          content: SizedBox(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DropdownButtonFormField<int>(
+                  initialValue: selectedParentId,
+                  decoration: const InputDecoration(
+                    labelText: "Yeni üst kategori",
                   ),
+                  items: [
+                    const DropdownMenuItem<int>(
+                      value: 0,
+                      child: Text("Ana kategori"),
+                    ),
+                    if (canMoveUnderParent)
+                      ..._categories
+                          .where((candidate) =>
+                              candidate.parentCategoryId == null &&
+                              candidate.id != category.id)
+                          .map(
+                            (candidate) => DropdownMenuItem<int>(
+                              value: candidate.id,
+                              child: Text(
+                                candidate.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setDialogState(() => selectedParentId = value);
+                  },
                 ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: double.infinity,
-                    height: 132,
-                    color: const Color(0xFFF8FAFC),
-                    child: Center(child: _buildImagePreview(selectedImagePath)),
+                if (hasChildren && category.parentCategoryId == null) ...[
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Bu kategoriyi başka bir üst kategoriye taşımadan önce alt kategorilerini taşıyın.",
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
                   ),
-                ),
+                ],
               ],
             ),
           ),
           actions: [
             TextButton(
-              onPressed: _isSubmitting ? null : () => Navigator.of(ctx).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text("İptal"),
             ),
             FilledButton(
-              onPressed: _isSubmitting
+              onPressed: selectedParentId == (category.parentCategoryId ?? 0)
                   ? null
-                  : () async {
-                      final name = _categoryNameController.text.trim();
-                      if (name.isEmpty) {
-                        _showError("Kategori adı zorunludur.");
-                        return;
-                      }
-
-                      setState(() => _isSubmitting = true);
-                      try {
-                        await AdminMenuService.createCategory(
-                          name: name,
-                          imagePath: selectedImagePath,
-                          parentCategoryId: selectedParentCategoryId,
-                        );
-                        if (!mounted || !ctx.mounted) return;
-                        Navigator.of(ctx).pop();
-                        await _refreshCategories();
-                        await _refreshProducts();
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Kategori eklendi.")),
-                        );
-                      } catch (e) {
-                        if (!mounted) return;
-                        _showError(
-                          _humanizeError(e, fallback: "Kategori eklenemedi."),
-                        );
-                      } finally {
-                        if (mounted) setState(() => _isSubmitting = false);
-                      }
-                    },
-              child: const Text("Kaydet"),
+                  : () => Navigator.of(dialogContext).pop(selectedParentId),
+              child: const Text("Taşı"),
             ),
           ],
         ),
       ),
     );
+
+    if (selected == null) return false;
+
+    setState(() => _isSubmitting = true);
+    try {
+      await AdminMenuService.moveCategory(
+        categoryId: category.id,
+        parentCategoryId: selected == 0 ? null : selected,
+      );
+      await _refreshCategories();
+      await _refreshProducts();
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Kategori taşındı.")),
+      );
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      _showError(_humanizeError(e, fallback: "Kategori taşınamadı."));
+      return false;
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   Future<void> _openEditDialog(AdminMenuProduct product) async {
@@ -535,7 +805,7 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                         ? null
                         : () async {
                             await _openCreateCategoryDialog();
-                            if (!mounted || !ctx.mounted) return;
+                            if (!mounted) return;
                             dialogCategories = List.of(_categories);
                             setModalState(() {});
                           },
@@ -573,72 +843,134 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
                         final categorySummary = isSubcategory
                             ? "Alt kategori${parentCategory == null ? "" : " · ${parentCategory.name}"} · ${category.activeProductCount} aktif ürün"
                             : "${category.activeProductCount} aktif ürün (alt kategoriler dahil) · $childCategoryCount alt kategori";
-                        return ListTile(
-                          contentPadding: EdgeInsets.only(
-                            left: isSubcategory ? 24 : 4,
-                            right: 4,
-                          ),
-                          leading: isSubcategory
-                              ? const Icon(
+                        final leadingWidget = isSubcategory
+                            ? const Padding(
+                                padding: EdgeInsets.only(left: 8),
+                                child: Icon(
                                   Icons.subdirectory_arrow_right_rounded,
                                   color: Color(0xFF64748B),
-                                )
-                              : category.imagePath.trim().isEmpty
-                              ? CircleAvatar(
-                                  backgroundColor: const Color(0xFFE2E8F0),
-                                  foregroundColor: const Color(0xFF334155),
-                                  child: Text(
-                                    category.name.isEmpty
-                                        ? "?"
-                                        : category.name.characters.first
-                                              .toUpperCase(),
-                                  ),
-                                )
-                              : ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: SizedBox(
-                                    width: 52,
-                                    height: 52,
-                                    child: _buildImagePreview(
-                                      category.imagePath,
+                                  size: 20,
+                                ),
+                              )
+                            : category.imagePath.trim().isEmpty
+                            ? CircleAvatar(
+                                radius: 22,
+                                backgroundColor: const Color(0xFFE2E8F0),
+                                foregroundColor: const Color(0xFF334155),
+                                child: Text(
+                                  category.name.isEmpty
+                                      ? "?"
+                                      : category.name.characters.first
+                                            .toUpperCase(),
+                                ),
+                              )
+                            : ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: SizedBox(
+                                  width: 44,
+                                  height: 44,
+                                  child: _buildImagePreview(category.imagePath),
+                                ),
+                              );
+
+                        return Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: EdgeInsets.only(
+                            left: isSubcategory ? 18 : 8,
+                            right: 8,
+                            top: 8,
+                            bottom: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.transparent,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              leadingWidget,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      category.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontWeight: isSubcategory
+                                            ? FontWeight.w500
+                                            : FontWeight.w700,
+                                        fontSize: 15,
+                                        color: const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      hasActiveProducts
+                                          ? categorySummary
+                                          : isSubcategory
+                                          ? "Alt kategori · aktif ürün yok"
+                                          : "Aktif ürün yok · $childCategoryCount alt kategori",
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: "Üst kategoriyi değiştir",
+                                    onPressed: _isSubmitting
+                                        ? null
+                                        : () async {
+                                            final moved = await _moveCategory(category);
+                                            if (!moved || !mounted || !ctx.mounted) {
+                                              return;
+                                            }
+                                            dialogCategories = List.of(_categories);
+                                            setModalState(() {});
+                                          },
+                                    icon: const Icon(Icons.drive_file_move_outlined),
+                                    padding: const EdgeInsets.all(8),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 36,
+                                      minHeight: 36,
                                     ),
                                   ),
-                                ),
-                          title: Text(
-                            category.name,
-                            style: TextStyle(
-                              fontWeight: isSubcategory
-                                  ? FontWeight.w500
-                                  : FontWeight.w700,
-                            ),
-                          ),
-                          subtitle: Text(
-                            hasActiveProducts
-                                ? categorySummary
-                                : isSubcategory
-                                ? "Alt kategori · aktif ürün yok"
-                                : "Aktif ürün yok · $childCategoryCount alt kategori",
-                          ),
-                          trailing: IconButton(
-                            tooltip: isSubcategory
-                                ? "Alt kategoriyi sil"
-                                : "Kategoriyi sil",
-                            color: const Color(0xFFDC2626),
-                            onPressed: _isSubmitting
-                                ? null
-                                : () async {
-                                    final deleted = await _deleteCategory(
-                                      category,
-                                    );
-                                    if (!deleted || !mounted || !ctx.mounted) {
-                                      return;
-                                    }
-                                    dialogCategories = List.of(_categories);
-                                    setModalState(() {});
-                                  },
-                            icon: const Icon(
-                              Icons.delete_outline_rounded,
-                            ),
+                                  IconButton(
+                                    tooltip: isSubcategory
+                                        ? "Alt kategoriyi sil"
+                                        : "Kategoriyi sil",
+                                    color: const Color(0xFFDC2626),
+                                    onPressed: _isSubmitting
+                                        ? null
+                                        : () async {
+                                            final deleted = await _deleteCategory(category);
+                                            if (!deleted || !mounted || !ctx.mounted) {
+                                              return;
+                                            }
+                                            dialogCategories = List.of(_categories);
+                                            setModalState(() {});
+                                          },
+                                    icon: const Icon(Icons.delete_outline_rounded),
+                                    padding: const EdgeInsets.all(8),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 36,
+                                      minHeight: 36,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         );
                       },
@@ -649,7 +981,13 @@ class _AdminMenuManagementScreenState extends State<AdminMenuManagementScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: _isSubmitting ? null : () => Navigator.of(ctx).pop(),
+              onPressed: _isSubmitting
+                  ? null
+                  : () {
+                      if (Navigator.of(ctx).canPop()) {
+                        Navigator.of(ctx).pop();
+                      }
+                    },
               child: const Text("Kapat"),
             ),
           ],

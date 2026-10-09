@@ -80,13 +80,18 @@ async function listCategoriesForAdmin() {
         c.parent_category_id,
         COUNT(DISTINCT p.id)::int AS active_product_count
       FROM categories c
+      LEFT JOIN categories parent ON parent.id = c.parent_category_id
       LEFT JOIN category_tree tree ON tree.ancestor_id = c.id
       LEFT JOIN products p
         ON p.category_id = tree.descendant_id
        AND p.is_active = TRUE
       WHERE c.is_active = TRUE
-      GROUP BY c.id
-      ORDER BY c.sort_order ASC NULLS LAST, c.name ASC;
+      GROUP BY c.id, parent.id, parent.sort_order
+      ORDER BY
+        COALESCE(parent.sort_order, c.sort_order) ASC NULLS LAST,
+        CASE WHEN parent.id IS NULL THEN 0 ELSE 1 END ASC,
+        c.sort_order ASC NULLS LAST,
+        c.name ASC;
     `
   );
   return rows;
@@ -216,6 +221,69 @@ async function createCategory({
   );
 
   return rows[0] || null;
+}
+
+async function moveCategory({ categoryId, parentCategoryId = null }) {
+  const client = await db.pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const { rows: categoryRows } = await client.query(
+      `SELECT id, parent_category_id FROM categories WHERE id = $1 AND is_active = TRUE FOR UPDATE`,
+      [categoryId]
+    );
+    if (!categoryRows.length) {
+      const error = new Error("Kategori bulunamadı.");
+      error.code = "CATEGORY_NOT_FOUND";
+      throw error;
+    }
+
+    if (parentCategoryId != null) {
+      if (Number(categoryRows[0].id) === Number(parentCategoryId)) {
+        const error = new Error("Kategori kendisinin üst kategorisi olamaz.");
+        error.code = "INVALID_CATEGORY_PARENT";
+        throw error;
+      }
+
+      const { rows: parentRows } = await client.query(
+        `SELECT id FROM categories WHERE id = $1 AND is_active = TRUE AND parent_category_id IS NULL FOR UPDATE`,
+        [parentCategoryId]
+      );
+      if (!parentRows.length) {
+        const error = new Error("Üst kategori bulunamadı veya kendisi alt kategori.");
+        error.code = "INVALID_CATEGORY_PARENT";
+        throw error;
+      }
+
+      const { rows: childRows } = await client.query(
+        `SELECT id FROM categories WHERE parent_category_id = $1 AND is_active = TRUE LIMIT 1`,
+        [categoryId]
+      );
+      if (childRows.length) {
+        const error = new Error("Önce bu kategorinin alt kategorilerini taşıyın.");
+        error.code = "CATEGORY_HAS_SUBCATEGORIES";
+        throw error;
+      }
+    }
+
+    const { rows } = await client.query(
+      `
+        UPDATE categories
+        SET parent_category_id = $2, updated_at = NOW()
+        WHERE id = $1 AND is_active = TRUE
+        RETURNING id, name, parent_category_id;
+      `,
+      [categoryId, parentCategoryId]
+    );
+
+    await client.query("COMMIT");
+    return rows[0] || null;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function deactivateProduct({ productId }) {
@@ -391,6 +459,7 @@ module.exports = {
   listCategoriesForAdmin,
   listProductsForAdmin,
   createCategory,
+  moveCategory,
   createProduct,
   updateProduct,
   deleteProduct,

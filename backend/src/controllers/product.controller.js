@@ -112,6 +112,41 @@ async function createCategoryAdmin(req, res, next) {
   }
 }
 
+async function moveCategoryAdmin(req, res, next) {
+  const categoryId = parsePositiveInt(req.params.categoryId);
+  const rawParentId = req.body?.parent_category_id;
+  const parentCategoryId = rawParentId == null || rawParentId === ""
+    ? null
+    : parsePositiveInt(rawParentId);
+
+  if (categoryId == null) {
+    return res.status(400).json({ message: "Gecersiz kategori kimligi." });
+  }
+  if (rawParentId != null && rawParentId !== "" && parentCategoryId == null) {
+    return res.status(400).json({ message: "Gecersiz ust kategori kimligi." });
+  }
+
+  try {
+    const category = await productService.moveCategory({
+      categoryId,
+      parentCategoryId,
+    });
+    if (!category) {
+      return res.status(404).json({ message: "Kategori bulunamadi." });
+    }
+    emitMenuRefresh(req);
+    return res.status(200).json({ message: "Kategori tasindi.", category });
+  } catch (error) {
+    if (error?.code === "CATEGORY_NOT_FOUND") {
+      return res.status(404).json({ message: error.message });
+    }
+    if (["INVALID_CATEGORY_PARENT", "CATEGORY_HAS_SUBCATEGORIES"].includes(error?.code)) {
+      return res.status(400).json({ message: error.message });
+    }
+    return next(error);
+  }
+}
+
 async function listProductsAdmin(req, res, next) {
   try {
     const search = (req.query.search || "").toString();
@@ -262,6 +297,7 @@ module.exports = {
   listProducts,
   listCategoriesAdmin,
   createCategoryAdmin,
+  moveCategoryAdmin,
   listProductsAdmin,
   createProductAdmin,
   updateProductAdmin,
